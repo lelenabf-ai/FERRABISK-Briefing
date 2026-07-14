@@ -1,87 +1,125 @@
-# Diagnóstico de Marca & Ambiente — Versão Híbrida
+# Ferrabisk Estúdio — Diagnóstico de Marca
 
-Ferramenta do **Ferrabisk Estúdio** para diagnóstico de marca, espaço e comunicação visual.
-Arquivo: `diagnostico-marca-ambiente-hibrido.html`
+Ferramenta do **Ferrabisk Estúdio** para diagnóstico e criação de marcas. Um único arquivo HTML, autônomo, que abre em qualquer navegador — sem instalação e sem servidor obrigatório.
 
-É um **formulário guiado** que uma marca preenche e que, ao final, gera automaticamente um documento com resumo, análise aprofundada, insights de melhoria e três paletas de cor. Funciona **100% offline por padrão** e, opcionalmente, pode usar uma IA externa para enriquecer o texto.
+**Arquivo principal:** `diagnostico-marca-ambiente-unificado.html`
+
+Ele reúne **dois diagnósticos** numa tela inicial de escolha:
+
+1. **Marca consolidada** — para quem já tem uma marca. Diagnóstico completo de identidade, ambiente físico e comunicação visual. Funciona **offline**; IA opcional.
+2. **Marca nova** — para quem quer criar uma marca do zero e não sabe por onde começar. A **IA** analisa o nicho e sugere direção, paletas, tipografias e estilo.
+
+---
+
+## Arquivos do pacote
+
+| Arquivo | Para quê |
+|--------|----------|
+| `diagnostico-marca-ambiente-unificado.html` | A ferramenta. É o único arquivo que os usuários abrem. |
+| `proxy-cloudflare-worker.js` | Backend opcional (Cloudflare) para usar IA **sem chave por usuário**. |
+| `proxy-node-server.js` | Mesmo backend, alternativa em Node.js/Express. |
+| `README.md` | Este guia. |
 
 ---
 
 ## Como usar
 
-1. Baixe o arquivo `diagnostico-marca-ambiente-hibrido.html`.
-2. Dê dois cliques para abrir em qualquer navegador (Chrome, Edge, Firefox, Safari).
-3. Não precisa instalar nada, não precisa de servidor e, no modo padrão, não precisa de internet.
+1. Baixe o `diagnostico-marca-ambiente-unificado.html`.
+2. Dê dois cliques para abrir no navegador (Chrome, Edge, Firefox, Safari).
+3. Na tela inicial, escolha **"Já tenho uma marca"** ou **"Quero criar uma marca"**.
 
-O preenchimento acontece em 6 etapas, navegáveis pela barra de progresso no topo:
-
-| Etapa | Conteúdo |
-|------|----------|
-| 1. Identidade | Nome, segmento, anos de mercado, público-alvo |
-| 2. Cores | Cores principais e secundárias, estado da identidade visual |
-| 3. Essência | Missão, valores, personalidade, sensação desejada |
-| 4. Futuro | Objetivos, expansão, percepção futura |
-| 5. Ambiente | Espaço atual, gargalos, se o ambiente comunica a marca, limitações |
-| 6. Comunicação | Sinalização/wayfinding, materiais, desafios visuais |
-
-Campos obrigatórios (marcados com `*`): **nome da marca**, **segmento** e **cores principais**. Os demais são opcionais — quanto mais preenchido, mais rica a análise.
-
-Ao clicar em **Gerar diagnóstico**, a ferramenta produz o documento. Botões disponíveis no resultado: **Imprimir / Salvar PDF**, **Editar respostas** e **Nova marca**.
+Dá para voltar à tela inicial a qualquer momento pelos botões **Início / Novo diagnóstico**. As respostas ficam salvas no navegador, então fechar e voltar não perde o preenchimento.
 
 ---
 
-## O que é gerado
+## Modo 1 — Marca consolidada
 
-- **Resumo** — síntese da marca e do estado atual.
-- **Análise aprofundada** — blocos sobre identidade, essência/cultura, ambiente físico e gargalos, comunicação visual e prospecção futura.
-- **Insights de melhoria** — recomendações priorizadas (alta / média / baixa), focadas em arquitetura de ambientes e comunicação visual.
-- **3 paletas de cor**, calculadas por teoria das cores a partir das cores informadas:
-  1. **Refinamento análogo** — harmonia em torno da cor principal.
-  2. **Contraste complementar** — opostos calibrados para destaques e sinalização.
-  3. **Neutra arquitetônica** — tons de baixa saturação para acabamentos, paredes e mobiliário.
+Formulário em 6 etapas: Identidade, Cores, Essência, Futuro, Ambiente e Comunicação visual. Campos obrigatórios: **nome**, **segmento** e **cores principais**.
 
-Cada cor traz HEX, nome e uso sugerido no ambiente. **Clique em qualquer amostra para copiar o HEX.**
+Gera um documento com:
 
-> As paletas reconhecem tanto códigos HEX (`#b5562f`) quanto nomes em português (ex.: "terracota", "verde musgo", "areia", "azul marinho").
+- **Resumo** da marca e do estado atual.
+- **Análise aprofundada** (identidade, cultura, ambiente/gargalos, comunicação, futuro).
+- **Insights de melhoria** priorizados (alta / média / baixa).
+- **3 paletas** calculadas por teoria das cores a partir das cores informadas (refinamento análogo, contraste complementar e neutra arquitetônica).
+
+Funciona **100% offline**. Se houver IA integrada (ver abaixo), o texto da análise é **enriquecido automaticamente**; as paletas continuam calculadas localmente.
 
 ---
 
-## Modo IA (opcional)
+## Modo 2 — Marca nova (do zero)
 
-Por padrão, todo o diagnóstico é gerado **localmente, sem IA e sem internet** — o resultado é consistente e determinístico.
+Formulário curto em 3 etapas: Negócio/nicho, Público/posicionamento e Personalidade/preferências de cor. Campos obrigatórios: **nicho**, **oferta**, **público** e **personalidade**.
 
-Na última etapa do formulário há um painel recolhível **"Modo IA · opcional"**. Ao ativá-lo:
+Este modo usa **IA** e gera:
 
-1. Escolha o **provedor**: Anthropic (Claude) ou OpenAI.
-2. Cole a **sua própria chave de API**.
-3. Opcionalmente, ajuste o **modelo** (padrão: `claude-sonnet-4-6` para Anthropic, `gpt-4o-mini` para OpenAI).
+- **Direção de marca** — conceito norteador e posicionamento para o nicho.
+- **Paletas de cor** sugeridas para o ramo (com HEX, nome e uso; respeita cores que a pessoa gosta/quer evitar).
+- **Tipografias sugeridas** — com **prévia ao vivo**: a ferramenta carrega as fontes do Google Fonts e mostra o nome do negócio em cada uma, com link e justificativa.
+- **Estilo visual** — palavras-chave de mood e direção de formas, imagens e materiais.
+- **Próximos passos** — de 3 a 5 ações práticas.
 
-Quando ativo, a IA escreve o **resumo, a análise e os insights** (texto mais fluido e interpretativo). As **paletas continuam sempre calculadas localmente**, por serem mais confiáveis.
+> Em qualquer paleta, **clique numa amostra para copiar o HEX**.
 
-**Comportamentos importantes:**
+---
 
-- **Queda automática para o modo local.** Se a chave for inválida, faltar internet ou o navegador bloquear a chamada, a ferramenta não trava: gera o diagnóstico offline e exibe um aviso discreto.
-- **Selo de origem.** No topo do resultado aparece se a análise foi *"gerada localmente · offline"* ou *"enriquecida por IA · [provedor]"*.
-- **Chave sob seu controle.** Por padrão a chave **não é salva** (some ao recarregar). A caixa *"Lembrar a chave neste navegador"* a guarda localmente apenas se marcada.
+## Inteligência artificial: 3 formas de usar
 
-### ⚠️ Segurança da chave de API
+> **Importante:** a IA sempre precisa de **uma** chave em algum lugar. O que dá para eliminar é a chave **por usuário**.
 
-Colar a chave direto no navegador é prático para **uso interno do estúdio**, mas a chave fica armazenada/visível no seu computador e é enviada direto ao provedor escolhido.
+A configuração fica no topo do HTML, no objeto `AI_CONFIG`:
 
-- Não use em computadores compartilhados ou públicos.
-- Não distribua o arquivo com a chave "lembrada" salva dentro dele.
-- Para uso aberto a clientes ou em escala, o correto é um pequeno backend que guarde a chave — não exponha a chave no navegador.
+```js
+var AI_CONFIG = {
+  proxyUrl: "",           // Opção A: URL do backend publicado
+  embeddedProvider: "",   // Opção B: "anthropic" ou "openai"
+  embeddedKey: "",        // Opção B: sua chave de API
+  embeddedModel: "",      // opcional: ex. "claude-sonnet-4-6" ou "gpt-4o-mini"
+  autoEnrich: true        // consolidada: enriquecer com IA quando houver IA integrada
+};
+```
+
+Prioridade de uso: **proxy → chave embutida → chave manual do usuário**.
+
+### Sem configurar nada (padrão)
+A ferramenta pede a chave manualmente, num painel **"Modo IA"** na última etapa. Cada usuário cola a própria chave. Bom para testar antes de publicar o backend.
+
+### Opção A — Proxy (recomendada, segura)
+Você publica o backend uma vez; a chave fica **no servidor** e **ninguém a vê**. Cole a URL do backend em `proxyUrl`. A partir daí, todos usam a IA **sem digitar chave** — a última etapa mostra apenas *"IA integrada ativa"*.
+
+### Opção B — Chave embutida (rápida, menos segura)
+Preencha `embeddedProvider` e `embeddedKey` no próprio arquivo. Funciona na hora, mas **quem tiver o arquivo consegue ver a chave** — use só para distribuição interna/confiável.
+
+---
+
+## Publicando o proxy (Opção A)
+
+### Cloudflare Worker (grátis, ~5 min) — `proxy-cloudflare-worker.js`
+1. Acesse o painel da Cloudflare → **Workers & Pages → Create → Worker**.
+2. Cole o conteúdo do arquivo e faça o **Deploy**.
+3. Em **Settings → Variables and Secrets**, adicione:
+   - `AI_PROVIDER` = `anthropic` (ou `openai`)
+   - `AI_API_KEY` = sua chave secreta
+   - `AI_MODEL` = `claude-sonnet-4-6` (ou `gpt-4o-mini`) — opcional
+   - `ALLOW_ORIGIN` = `*` (ou o domínio onde o HTML será aberto)
+4. Copie a URL do Worker e cole em `AI_CONFIG.proxyUrl` no HTML.
+
+### Node.js / Express (alternativa) — `proxy-node-server.js`
+Instale (`npm install express cors`), defina as variáveis de ambiente (`AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `ALLOW_ORIGIN`, `PORT`) e rode com `node server.js`. Publique num host (Render, Railway, Fly.io, VPS…) e use a URL pública em `proxyUrl`.
+
+**Contrato do backend:** o HTML envia `POST { prompt, max_tokens }` e recebe `{ text }`. Para trocar de provedor, basta mudar as variáveis no servidor — não é preciso mexer no HTML.
+
+### Segurança da chave
+- **Proxy:** a chave nunca chega ao navegador. É a forma correta para uso aberto/escala.
+- **Chave embutida ou manual no navegador:** prática para uso interno, mas a chave fica exposta a quem tiver o arquivo. Não use em computadores compartilhados nem distribua o arquivo com a chave salva.
 
 ---
 
 ## Personalização
 
-Tudo que costuma mudar fica logo no topo do arquivo (abra com um editor de texto/código).
+Tudo que costuma mudar fica no topo do arquivo (abra com um editor de texto/código).
 
-### Cores do estúdio
-
-No objeto `THEME` (início do arquivo):
-
+### Cores do estúdio — objeto `THEME`
 ```js
 var THEME = {
   bg:        "#4c5a3e", // FUNDO da página — verde musgo
@@ -96,47 +134,34 @@ var THEME = {
   cafe:      "#332420"  // marrom café
 };
 ```
-
-Para trocar o fundo, mude `bg` (ex.: `"#6e2a33"` bordô ou `"#b5562f"` terracota). Os tons de apoio que dependem do destaque são recalculados automaticamente.
+Para trocar o fundo, mude `bg` (ex.: `"#6e2a33"` bordô ou `"#b5562f"` terracota). Os tons de apoio são recalculados automaticamente.
 
 ### Logo
+A logo está embutida em base64 (sem dependência externa). Para trocá-la, substitua o valor de `LOGO_SRC` por um novo data URI `data:image/png;base64,...`.
 
-A logo está embutida no próprio arquivo (em base64), então não há dependência de imagem externa. Para trocá-la, substitua o valor da variável `LOGO_SRC` por um novo data URI `data:image/png;base64,...`.
-
-### Textos
-
-O título do cabeçalho e as perguntas do formulário estão em variáveis de fácil edição (`STEPS` para as etapas/perguntas; o texto "Ferrabisk Estúdio · …" na função `header`).
+### Textos e perguntas
+As perguntas ficam nos arrays `STEPS` (marca consolidada) e `STEPS_NOVA` (marca nova). O título do cabeçalho está na função `header`.
 
 ---
 
 ## Privacidade e dados
 
-- As respostas são salvas **apenas no navegador** (armazenamento local), para não perder o preenchimento ao fechar a aba. Nada é enviado para fora no modo offline.
-- O botão **Nova marca** limpa as respostas salvas.
-- No Modo IA, somente o conteúdo das respostas é enviado ao provedor escolhido, e apenas no momento de gerar o diagnóstico.
+- As respostas são salvas **apenas no navegador** (armazenamento local), separadas por modo.
+- No modo offline, nada é enviado para fora.
+- Quando a IA é usada, apenas o conteúdo das respostas é enviado ao provedor/proxy, e só no momento de gerar.
+- Os botões **Início / Novo diagnóstico** limpam o resultado atual.
 
 ---
 
 ## Impressão / PDF
 
-O botão **Imprimir / Salvar PDF** abre a caixa de impressão do navegador (escolha "Salvar como PDF"). O documento é formatado automaticamente em **fundo claro com texto escuro** — o tema escuro é só da tela —, ficando limpo para entregar ao cliente. Os botões de interface não aparecem na versão impressa.
+O botão **Imprimir / Salvar PDF** abre a caixa de impressão do navegador (escolha "Salvar como PDF"). O documento é formatado automaticamente em **fundo claro com texto escuro** — o tema escuro é só da tela —, ficando limpo para entregar ao cliente. Botões de interface não aparecem na impressão.
 
 ---
 
 ## Notas técnicas
 
 - Arquivo único, sem build e sem dependências instaláveis.
-- As fontes (Archivo, Inter, IBM Plex Mono) vêm do Google Fonts via internet; **offline, o navegador usa fontes do sistema** automaticamente, sem quebrar o layout.
-- O Modo IA usa `fetch` direto para a API do provedor. Alguns ambientes podem bloquear a chamada por CORS — nesse caso, a ferramenta cai para o modo local.
-- Testado como página estática local (`file://`) e também funciona servido por qualquer servidor de arquivos estáticos.
-
----
-
-## Duas versões disponíveis
-
-| Arquivo | Descrição |
-|--------|-----------|
-| `diagnostico-marca-ambiente.html` | Versão **somente offline**, sem qualquer IA. Base sólida e determinística. |
-| `diagnostico-marca-ambiente-hibrido.html` | Esta versão: **offline por padrão**, com Modo IA opcional para enriquecer o texto. |
-
-Ambas compartilham o mesmo motor de cálculo de paletas e a mesma identidade visual do estúdio.
+- Fontes (Archivo, Inter, IBM Plex Mono) vêm do Google Fonts; **offline, o navegador usa fontes do sistema** sem quebrar o layout.
+- A prévia de tipografia da marca nova carrega fontes do Google Fonts em tempo real (requer internet).
+- Chamadas de IA usam `fetch`. Sem proxy, algumas redes podem bloquear a chamada direta ao provedor por CORS — nesse caso, a marca consolidada cai para o modo local e a marca nova exibe o erro para você corrigir. O proxy resolve isso, pois trata CORS no servidor.
