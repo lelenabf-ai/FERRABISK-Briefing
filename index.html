@@ -89,7 +89,10 @@ body{
 .stamp{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-3);text-align:right;white-space:normal;max-width:190px;line-height:1.45;}
 .head-left{display:flex;align-items:center;gap:18px;min-width:0;}
 .head-txt{min-width:0;}
-.brandmark{flex:none;width:96px;height:96px;display:flex;align-items:center;justify-content:center;}
+.brandmark{flex:none;width:96px;height:96px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.brandmark:hover{filter:brightness(1.04);}
+.ferralink{color:inherit;text-decoration:none;}
+.ferralink:hover{text-decoration:underline;text-underline-offset:2px;}
 .brandmark img{width:100%;height:100%;object-fit:contain;display:block;}
 @media (max-width:560px){ .brandmark{width:72px;height:72px;} }
 
@@ -446,9 +449,9 @@ function header(){
   else { h1="Briefing de marca, espaço e comunicação visual"; sub="Um intake guiado para mapear identidade, cultura, ambiente físico e comunicação visual — e devolver análise, insights e paletas aplicáveis ao projeto."; }
   var stamp = home ? "INÍCIO" : (admin ? "ADMIN" : (isRes ? "DIAGNÓSTICO" : "Diagnósticos pra quem sabe onde quer chegar"));
   return '<header class="head"><div class="head-left">'
-    + '<div class="brandmark"><img src="' + LOGO_SRC + '" alt="Logo do estúdio"></div>'
+    + '<div class="brandmark" data-gohome="1" title="Voltar ao início"><img src="' + LOGO_SRC + '" alt="Logo do estúdio"></div>'
     + '<div class="head-txt">'
-    + '<div class="eyebrow">Ferrabisk Estúdio · Diagnóstico de marca</div>'
+    + '<div class="eyebrow"><a class="ferralink" href="https://www.instagram.com/ferrabisk?igsh=dTYwNHZxcWhhbWRx" target="_blank" rel="noopener">Ferrabisk Estúdio</a> · Diagnóstico de marca</div>'
     + '<h1>' + h1 + '</h1>'
     + (sub ? '<p>'+sub+'</p>' : "")
     + '</div></div><div class="stamp">' + stamp + '</div></header>';
@@ -459,17 +462,17 @@ function renderHome(){
     + '<button class="choice" data-choose="consolidada">'
     +   '<div class="choice-tag">Marca consolidada</div>'
     +   '<div class="choice-title">Já tenho uma marca</div>'
-    +   '<div class="choice-desc">Diagnóstico completo de identidade, ambiente físico e comunicação visual, com análise, insights e paletas. Funciona offline; IA opcional.</div>'
+    +   '<div class="choice-desc">Diagnóstico completo de identidade, ambiente físico e comunicação visual, com análise, insights e paletas no estilo Ferrabisk.</div>'
     +   '<div class="choice-go">Começar →</div>'
     + '</button>'
     + '<button class="choice alt" data-choose="nova">'
     +   '<div class="choice-tag">Marca nova</div>'
     +   '<div class="choice-title">Quero criar uma marca</div>'
-    +   '<div class="choice-desc">Para quem parte do zero e não sabe por onde começar. A IA analisa o seu nicho e sugere direção, paletas de cor, tipografias e estilo visual.</div>'
+    +   '<div class="choice-desc">Para quem parte do zero e não sabe por onde começar. A IA analisa o seu nicho e sugere direção, paletas de cor, tipografias e estilo visual no estilo Ferrabisk.</div>'
     +   '<div class="choice-go">Começar →</div>'
     + '</button>'
     + '</div>'
-    + '<p class="priv">Escolha uma opção. Você pode voltar a esta tela a qualquer momento. · <a class="adminlink" data-admin="1">Acesso do administrador</a></p>';
+    + '<p class="priv">Escolha uma opção. Você pode voltar a esta tela a qualquer momento.</p>';
 }
 
 function renderAdmin(){ return state.adminAuthed ? renderAdminDash() : renderAdminLogin(); }
@@ -743,6 +746,7 @@ function bind(){
   bindIf("[data-print]", function(){ window.print(); });
   bindIf("[data-edit]", function(){ state.phase="form"; state.step=Math.max(0,currentSteps().length-1); render(); });
   bindIf("[data-home]", function(){ state.phase="home"; state.mode=null; state.result=null; state.step=0; state.showWarn=false; state.aiError=""; state.fromAdmin=false; state.viewAnswers=null; scrollTop(); render(); });
+  app.querySelectorAll("[data-gohome]").forEach(function(el){ el.addEventListener("click", function(){ state.phase="home"; state.mode=null; state.result=null; state.step=0; state.showWarn=false; state.aiError=""; state.fromAdmin=false; state.viewAnswers=null; scrollTop(); render(); }); });
   // ---- administrador ----
   var admLink = app.querySelector("[data-admin]"); if(admLink) admLink.addEventListener("click", function(){ state.phase="admin"; state.adminError=""; scrollTop(); render(); });
   var pw = app.querySelector("[data-adminpass]");
@@ -1127,8 +1131,6 @@ function hslToHex(h,s,l){
   return ("#"+to(r)+to(g)+to(b)).toUpperCase();
 }
 
-if(location.hash==="#admin"){ state.phase="admin"; }
-window.addEventListener("hashchange", function(){ if(location.hash==="#admin" && state.phase!=="admin"){ state.phase="admin"; state.adminError=""; render(); } });
 window.addEventListener("online", function(){ flushOutbox(); });
 try{ flushOutbox(); }catch(e){}
 render();
