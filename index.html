@@ -41,7 +41,28 @@
     embeddedProvider: "",   // Opção B: "anthropic" ou "openai"
     embeddedKey: "",        // Opção B: sua chave de API
     embeddedModel: "",      // opcional: ex. "claude-sonnet-4-6" ou "gpt-4o-mini"
-    autoEnrich: true        // marca consolidada: enriquecer com IA automaticamente quando houver IA integrada
+    autoEnrich: true,       // marca consolidada: enriquecer com IA automaticamente quando houver IA integrada
+    autoSintese: true       // ★ relatório final: gerar automaticamente a síntese integrada por IA (false = só no botão)
+  };
+
+  /* ┌─ PESQUISA ONLINE + REFERÊNCIAS VISUAIS ─┐
+     A IA pesquisa na internet inovações gráficas e arquitetônicas do nicho da
+     marca e devolve referências com imagem ilustrativa, descrição e aplicação.
+     • Busca na web REAL acontece quando o provedor permite:
+       Anthropic (ferramenta web_search), OpenAI (Responses API + web_search),
+       proxy próprio (envie plain/search adiante) ou Pollinations em modo busca.
+       Se nada disso responder, a IA usa o próprio repertório e o relatório
+       avisa isso claramente — nunca finge que pesquisou.
+     • As imagens são ILUSTRATIVAS: geradas por IA a partir da descrição, para
+       mostrar a ideia. Cada referência traz também links de busca (Pinterest,
+       Behance, ArchDaily, Google Imagens) para ver projetos reais. */
+  var RESEARCH_CONFIG = {
+    autoPesquisa: true,     // gerar a pesquisa automaticamente ao final do diagnóstico
+    web: true,              // tentar busca online real quando o provedor permitir
+    imagens: true,          // gerar imagens ilustrativas para cada referência
+    qtdReferencias: 6,      // quantas referências pedir (4 a 10)
+    imgW: 768, imgH: 512,   // tamanho das imagens ilustrativas
+    imgModel: "flux"        // modelo de imagem aberto (Pollinations)
   };
 
   /* ┌─ ACESSO DO ADMINISTRADOR (coleta central obrigatória) ─┐
@@ -254,6 +275,99 @@ body{
 @media (prefers-reduced-motion:reduce){ .spin{animation:none;} .btn:active{transform:none;} }
 
 /* Impressão: documento em fundo claro e texto escuro, independente do tema escuro da tela */
+
+/* ===== CAMADA DE IA — síntese integrada + consultor ===== */
+.aiwrap{border:1px solid var(--accent-line);background:rgba(181,86,47,.10);border-radius:12px;padding:20px 20px 18px;margin-top:14px;}
+.aiwrap .ai-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.aiwrap .ai-dot{width:8px;height:8px;border-radius:50%;background:var(--accent-light);flex:none;box-shadow:0 0 0 4px var(--accent-soft);}
+.aiwrap .ai-tag{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent-light);}
+.ai-frase{font-family:'Archivo',sans-serif;font-weight:700;font-size:19px;line-height:1.3;letter-spacing:-.01em;color:var(--ink);margin:2px 0 12px;}
+.ai-diag{font-size:14.5px;color:var(--ink);margin:0 0 4px;}
+.ai-sub{margin-top:16px;}
+.ai-sub h5{font-family:'Archivo',sans-serif;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent-light);margin:0 0 8px;font-weight:700;}
+.ai-conex{border-left:2px solid var(--accent-line);padding:2px 0 2px 12px;margin-bottom:10px;}
+.ai-conex b{display:block;font-size:13.5px;color:var(--ink);margin-bottom:2px;}
+.ai-conex span{font-size:13px;color:var(--ink-2);}
+.ai-plano{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));}
+.ai-fase{background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:12px 13px;}
+.ai-fase .fs{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-light);}
+.ai-fase .fo{font-weight:600;font-size:13.5px;color:var(--ink);margin:3px 0 7px;}
+.ai-fase ul{margin:0;padding-left:16px;}
+.ai-fase li{font-size:12.8px;color:var(--ink-2);margin-bottom:4px;}
+.ai-cols{display:grid;gap:16px;grid-template-columns:1fr 1fr;}
+@media (max-width:560px){ .ai-cols{grid-template-columns:1fr;} }
+.ai-list{margin:0;padding-left:17px;}
+.ai-list li{font-size:13px;color:var(--ink-2);margin-bottom:5px;}
+.ai-first{margin-top:16px;background:var(--accent);color:var(--accent-ink);border-radius:10px;padding:12px 14px;}
+.ai-first b{display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;opacity:.85;margin-bottom:3px;}
+.ai-first span{font-size:14px;font-weight:500;}
+.ai-loading{display:flex;align-items:center;gap:12px;color:var(--ink-2);font-size:13.5px;}
+.ai-loading .spin{width:20px;height:20px;margin:0;flex:none;}
+.ai-msg{font-size:13px;color:var(--ink-2);}
+.ai-msg.err{color:var(--clay);}
+.ai-mini{font-family:'Archivo',sans-serif;font-weight:600;font-size:12.5px;cursor:pointer;border-radius:7px;padding:7px 14px;
+  border:1px solid var(--line-2);background:var(--btn-bg);color:var(--ink);transition:background .15s;}
+.ai-mini:hover{background:var(--btn-bg-h);}
+.ai-mini:disabled{opacity:.5;cursor:default;}
+.ai-mini.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
+
+/* consultor / chat */
+.chat-intro{font-size:13.5px;color:var(--ink-2);margin:0 0 12px;}
+.chat-sugs{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;}
+.chat-sug{font-family:'IBM Plex Mono',monospace;font-size:11.5px;cursor:pointer;border-radius:999px;padding:6px 12px;
+  border:1px dashed var(--line-2);background:transparent;color:var(--ink-2);transition:.15s;text-align:left;}
+.chat-sug:hover{border-color:var(--accent);color:var(--ink);background:var(--accent-soft);}
+.chat-msgs{display:flex;flex-direction:column;gap:10px;max-height:430px;overflow-y:auto;padding-right:4px;margin-bottom:12px;}
+.chat-msgs:empty{display:none;}
+.bub{border-radius:10px;padding:11px 13px;font-size:13.8px;line-height:1.55;max-width:88%;white-space:pre-wrap;}
+.bub.me{align-self:flex-end;background:var(--accent);color:var(--accent-ink);border-bottom-right-radius:3px;}
+.bub.ia{align-self:flex-start;background:var(--paper-2);border:1px solid var(--line);color:var(--ink);border-bottom-left-radius:3px;}
+.bub.ia b{color:var(--accent-light);}
+.bub.err{align-self:flex-start;background:transparent;border:1px dashed var(--line-2);color:var(--clay);font-size:13px;}
+.bub .who{display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;opacity:.65;margin-bottom:4px;}
+.chat-form{display:flex;gap:9px;align-items:flex-end;}
+.chat-form textarea{flex:1;background:var(--input-bg);border:1px solid var(--input-line);border-radius:9px;padding:11px 12px;
+  font-family:inherit;font-size:14px;color:var(--input-text);min-height:48px;max-height:150px;resize:vertical;}
+.chat-form textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+.chat-send{font-family:'Archivo',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;border-radius:9px;padding:13px 20px;
+  border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);white-space:nowrap;}
+.chat-send:disabled{opacity:.55;cursor:default;}
+.chat-foot{font-size:11.5px;color:var(--ink-3);margin-top:9px;font-family:'IBM Plex Mono',monospace;}
+
+
+/* ===== PESQUISA ONLINE + REFERÊNCIAS VISUAIS ===== */
+.pq-pan{font-size:14.5px;color:var(--ink);margin:0 0 6px;}
+.pq-src{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;color:var(--ink-3);margin:8px 0 0;}
+.refs{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));margin-top:16px;}
+.ref{background:var(--paper-2);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
+.ref-img{position:relative;aspect-ratio:3/2;background:var(--card);overflow:hidden;}
+.ref-img img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .45s;}
+.ref-img img.on{opacity:1;}
+.ref-img .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);
+  background:repeating-linear-gradient(135deg,var(--card),var(--card) 10px,var(--paper-2) 10px,var(--paper-2) 20px);}
+.ref-cat{position:absolute;top:9px;left:9px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;
+  text-transform:uppercase;padding:4px 9px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;backdrop-filter:blur(3px);}
+.ref-cat.graf{background:var(--accent);}
+.ref-cat.arq{background:var(--accent-2);}
+.ref-body{padding:14px 15px 15px;display:flex;flex-direction:column;gap:7px;flex:1;}
+.ref-body h4{font-family:'Archivo',sans-serif;font-size:15px;font-weight:700;margin:0;color:var(--ink);letter-spacing:-.01em;}
+.ref-body p{margin:0;font-size:13px;color:var(--ink-2);line-height:1.5;}
+.ref-body p.why{color:var(--ink);border-left:2px solid var(--accent-line);padding-left:9px;}
+.ref-lab{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-light);}
+.ref-fonte{font-size:11.5px;color:var(--ink-3);font-family:'IBM Plex Mono',monospace;}
+.ref-links{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:4px;}
+.ref-links a{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.04em;text-decoration:none;
+  padding:5px 10px;border-radius:999px;border:1px solid var(--line-2);color:var(--ink-2);transition:.15s;}
+.ref-links a:hover{border-color:var(--accent);color:var(--ink);background:var(--accent-soft);}
+.comp{border-left:2px solid var(--accent-line);padding:2px 0 2px 12px;margin-bottom:11px;}
+.comp b{display:block;font-size:13.5px;color:var(--ink);margin-bottom:2px;}
+.comp span{display:block;font-size:13px;color:var(--ink-2);}
+.comp em{display:block;font-size:12.5px;color:var(--accent-light);font-style:normal;margin-top:3px;}
+.pq-fontes{margin:0;padding-left:17px;}
+.pq-fontes li{font-size:12.5px;color:var(--ink-2);margin-bottom:4px;word-break:break-word;}
+.pq-fontes a{color:var(--ink-2);}
+
 @media print{
   body{background:#fff !important;color:#211f1b !important;}
   .no-print{display:none !important;}
@@ -275,6 +389,21 @@ body{
   .tag{background:#f1e6df !important;color:#7a3d22 !important;border-color:#e0c3b3 !important;}
   .steps li{color:#333 !important;}
   .block,.pal{break-inside:avoid;}
+  .aiwrap{background:#faf6f2 !important;border:1px solid #e0c3b3 !important;}
+  .ai-frase,.ai-diag,.ai-conex b,.ai-fase .fo{color:#211f1b !important;}
+  .ai-tag,.ai-sub h5,.ai-fase .fs{color:#8a3d1c !important;}
+  .ai-conex span,.ai-list li,.ai-fase li{color:#4a4a4a !important;}
+  .ai-fase{background:#fff !important;border:1px solid #cfcabf !important;}
+  .ai-first{background:#b5562f !important;color:#fff !important;}
+  .aiwrap{break-inside:avoid;}
+  .ref{background:#fff !important;border:1px solid #cfcabf !important;break-inside:avoid;}
+  .ref-body h4{color:#211f1b !important;}
+  .ref-body p,.ref-fonte,.comp span,.pq-fontes li{color:#4a4a4a !important;}
+  .ref-body p.why,.comp b{color:#211f1b !important;}
+  .ref-lab,.comp em{color:#8a3d1c !important;}
+  .ref-links{display:none !important;}
+  .pq-pan{color:#211f1b !important;}
+  .refs{grid-template-columns:1fr 1fr !important;}
 }
 </style>
 </head>
@@ -373,7 +502,16 @@ var STEPS_NOVA = [
 
 /* ============================================================== *  ESTADO  * ============================================================== */
 var state = { phase:"home", mode:null, step:0, answers:{}, novaAnswers:{}, result:null, showWarn:false, copied:"", aiOpen:false, aiError:"", ai:{provider:"",key:"",model:"",remember:false},
-  adminAuthed:false, adminToken:"", adminRecords:[], adminError:"", adminLoading:false, fromAdmin:false, viewAnswers:null };
+  adminAuthed:false, adminToken:"", adminRecords:[], adminError:"", adminLoading:false, fromAdmin:false, viewAnswers:null,
+  /* --- camada de IA integrada ao relatorio final --- */
+  recId:"", sinteseLoading:false, sinteseError:"",
+  pesquisaLoading:false, pesquisaError:"",
+  chat:[], chatDraft:"", chatBusy:false };
+function resetAILayer(){
+  state.recId=""; state.sinteseLoading=false; state.sinteseError="";
+  state.pesquisaLoading=false; state.pesquisaError="";
+  state.chat=[]; state.chatDraft=""; state.chatBusy=false;
+}
 try{ var saved = localStorage.getItem("diag_marca"); if(saved) state.answers = JSON.parse(saved); }catch(e){}
 try{ var savedN = localStorage.getItem("diag_nova"); if(savedN) state.novaAnswers = JSON.parse(savedN); }catch(e){}
 try{ var sk = localStorage.getItem("diag_ai"); if(sk){ var o=JSON.parse(sk); state.ai.provider=o.provider||""; state.ai.model=o.model||""; if(o.remember){ state.ai.key=o.key||""; state.ai.remember=true; } } }catch(e){}
@@ -462,13 +600,13 @@ function renderHome(){
     + '<button class="choice" data-choose="consolidada">'
     +   '<div class="choice-tag">Marca consolidada</div>'
     +   '<div class="choice-title">Já tenho uma marca</div>'
-    +   '<div class="choice-desc">Diagnóstico completo de identidade, ambiente físico e comunicação visual, com análise, insights e paletas no estilo Ferrabisk.</div>'
+    +   '<div class="choice-desc">Diagnóstico completo de identidade, ambiente físico e comunicação visual, com análise, insights e paletas no estilo Ferrabisk. Ao final, a IA integra tudo numa síntese estratégica com plano de 90 dias, pesquisa referências de inovação gráfica e arquitetônica para o seu segmento e fica disponível para conversar sobre o resultado.</div>'
     +   '<div class="choice-go">Começar →</div>'
     + '</button>'
     + '<button class="choice alt" data-choose="nova">'
     +   '<div class="choice-tag">Marca nova</div>'
     +   '<div class="choice-title">Quero criar uma marca</div>'
-    +   '<div class="choice-desc">Para quem parte do zero e não sabe por onde começar. A IA analisa o seu nicho e sugere direção, paletas de cor, tipografias e estilo visual no estilo Ferrabisk.</div>'
+    +   '<div class="choice-desc">Para quem parte do zero e não sabe por onde começar. A IA analisa o seu nicho e sugere direção, paletas de cor, tipografias e estilo visual no estilo Ferrabisk — e fecha com síntese integrada, plano de 90 dias e uma pesquisa de referências visuais do seu nicho.</div>'
     +   '<div class="choice-go">Começar →</div>'
     + '</button>'
     + '</div>'
@@ -589,7 +727,7 @@ function renderAiPanel(){
   var prov = ai.provider;
   var note = nova
     ? 'Este diagnóstico usa IA para analisar o seu nicho e sugerir <b>direção, paletas de cor, tipografias e estilo</b>. Escolha um provedor e cole a sua chave para gerar.'
-    : 'Por padrão o diagnóstico é gerado <b>offline, sem IA</b>. Opcionalmente, use sua própria chave de um provedor para enriquecer o texto da análise — as paletas continuam calculadas localmente.';
+    : 'Por padrão o diagnóstico é gerado <b>offline, sem IA</b>. Opcionalmente, use sua própria chave de um provedor para enriquecer o texto da análise e liberar a <b>síntese estratégica integrada</b>, a <b>pesquisa de referências visuais</b> e o <b>consultor de IA</b> no fim do relatório — as paletas continuam calculadas localmente.';
   var body = '<div class="ai-body">'
     + '<p class="ai-note">'+note+'</p>'
     + '<div class="ai-grid">'
@@ -687,6 +825,9 @@ function renderResultNova(){
       + r.passos.map(function(p){return '<li>'+esc(p)+'</li>';}).join("") + '</ol></div>';
   }
 
+  html += renderSintese("06");
+  html += renderPesquisa("07");
+  html += renderChat("08");
   html += '<div class="foot">'+esc(brandName().toUpperCase())+' · Direção de marca gerada por IA em '+today()+' · Clique numa amostra para copiar o HEX.</div>';
   return html;
 }
@@ -719,6 +860,9 @@ function renderResult(){
         }).join("");
         return '<div class="pal"><div class="pal-head"><div class="nm">'+esc(pal.nome)+'</div><div class="cc">'+esc(pal.conceito)+'</div></div><div class="chips">'+chips+'</div></div>';
       }).join("") + '</div>';
+  html += renderSintese("05");
+  html += renderPesquisa("06");
+  html += renderChat("07");
   html += '<div class="foot">'+esc(brandName().toUpperCase())+' · Diagnóstico gerado em '+today()+' · Clique numa amostra para copiar o HEX.</div>';
   return html;
 }
@@ -729,7 +873,7 @@ function bind(){
   app.querySelectorAll("[data-choose]").forEach(function(el){
     el.addEventListener("click", function(){
       state.mode = el.getAttribute("data-choose");
-      state.step = 0; state.showWarn=false; state.aiError=""; state.result=null; state.phase="form";
+      state.step = 0; state.showWarn=false; state.aiError=""; state.result=null; state.phase="form"; resetAILayer();
       if(state.mode==="nova" && !(state.ai.provider && state.ai.key.trim())) state.aiOpen=true;
       scrollTop(); render();
     });
@@ -745,8 +889,8 @@ function bind(){
   var nextBtn = app.querySelector("[data-next]"); if(nextBtn) nextBtn.addEventListener("click", next);
   bindIf("[data-print]", function(){ window.print(); });
   bindIf("[data-edit]", function(){ state.phase="form"; state.step=Math.max(0,currentSteps().length-1); render(); });
-  bindIf("[data-home]", function(){ state.phase="home"; state.mode=null; state.result=null; state.step=0; state.showWarn=false; state.aiError=""; state.fromAdmin=false; state.viewAnswers=null; scrollTop(); render(); });
-  app.querySelectorAll("[data-gohome]").forEach(function(el){ el.addEventListener("click", function(){ state.phase="home"; state.mode=null; state.result=null; state.step=0; state.showWarn=false; state.aiError=""; state.fromAdmin=false; state.viewAnswers=null; scrollTop(); render(); }); });
+  bindIf("[data-home]", function(){ state.phase="home"; state.mode=null; state.result=null; state.step=0; state.showWarn=false; state.aiError=""; state.fromAdmin=false; state.viewAnswers=null; resetAILayer(); scrollTop(); render(); });
+  app.querySelectorAll("[data-gohome]").forEach(function(el){ el.addEventListener("click", function(){ state.phase="home"; state.mode=null; state.result=null; state.step=0; state.showWarn=false; state.aiError=""; state.fromAdmin=false; state.viewAnswers=null; resetAILayer(); scrollTop(); render(); }); });
   // ---- administrador ----
   var admLink = app.querySelector("[data-admin]"); if(admLink) admLink.addEventListener("click", function(){ state.phase="admin"; state.adminError=""; scrollTop(); render(); });
   var pw = app.querySelector("[data-adminpass]");
@@ -761,7 +905,9 @@ function bind(){
       var id = el.getAttribute("data-openrec");
       var rec = (state.adminRecords||[]).filter(function(r){return r.id===id;})[0];
       if(!rec) return;
+      resetAILayer();
       state.fromAdmin=true; state.mode=rec.mode; state.viewAnswers=rec.answers||{}; state.result=rec.result||{};
+      state.recId = rec.id || "";
       state.phase="result"; scrollTop(); render();
     });
   });
@@ -783,6 +929,24 @@ function bind(){
       if(el.tagName==="SELECT") render();
     });
   });
+  // ---- camada de IA: síntese integrada ----
+  bindIf("[data-sintese]", function(){ runSintese(true); });
+  bindIf("[data-pesquisa]", function(){ runPesquisa(true); });
+  // ---- camada de IA: consultor (chat) ----
+  app.querySelectorAll("[data-ask]").forEach(function(el){
+    el.addEventListener("click", function(){ chatAsk(el.getAttribute("data-ask")); });
+  });
+  var ci = app.querySelector("[data-chatinput]");
+  if(ci){
+    ci.addEventListener("input", function(){ state.chatDraft = ci.value; });
+    ci.addEventListener("keydown", function(e){
+      if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); state.chatDraft = ci.value; chatAsk(ci.value); }
+    });
+    if(state.chatDraft || state.chat.length){ try{ ci.focus(); ci.setSelectionRange(ci.value.length, ci.value.length); }catch(e){} }
+  }
+  bindIf("[data-chatsend]", function(){ var el=app.querySelector("[data-chatinput]"); if(el){ state.chatDraft=el.value; chatAsk(el.value); } });
+  var cm = app.querySelector("#chat-msgs"); if(cm) cm.scrollTop = cm.scrollHeight;
+
   app.querySelectorAll("[data-copy]").forEach(function(el){
     el.addEventListener("click", function(){
       var hex = el.getAttribute("data-copy");
@@ -834,8 +998,11 @@ async function runGenerateNova(){
     var ai = await callAI(state.novaAnswers, buildAIPromptNova(state.novaAnswers));
     if(!ai || !(ai.direcao || ai.conceito)) throw new Error("resposta vazia");
     ai.source="ia"; ai.notice="";
-    saveSubmission("nova", state.novaAnswers, ai);
+    resetAILayer();
+    var recN = saveSubmission("nova", state.novaAnswers, ai);
+    state.recId = recN ? recN.id : "";
     state.result = ai; state.phase="result"; scrollTop(); render();
+    if(aiAvailable() && AI_CONFIG.autoSintese !== false) runSintese(true);
   }catch(e){
     state.phase="form"; state.step=currentSteps().length-1; state.aiOpen=true;
     state.aiError="Não foi possível gerar com a IA ("+(e.message||"erro")+"). Verifique a chave/conexão e tente de novo.";
@@ -876,8 +1043,11 @@ async function runGenerate(){
   } else {
     await new Promise(function(r){ setTimeout(r, 400); });
   }
-  saveSubmission("consolidada", state.answers, res);
+  resetAILayer();
+  var rec = saveSubmission("consolidada", state.answers, res);
+  state.recId = rec ? rec.id : "";
   state.result = res; state.phase="result"; scrollTop(); render();
+  if(aiAvailable() && AI_CONFIG.autoSintese !== false) runSintese(true);
 }
 
 function buildAIPrompt(a){
@@ -899,16 +1069,16 @@ async function callAI(a, promptOverride){
   return JSON.parse(text.slice(f,l+1));
 }
 
-async function aiComplete(prompt, maxTokens){
+async function aiComplete(prompt, maxTokens, plain){
   // Padrão — IA aberta (Pollinations): só internet, SEM chave
   if(AI_CONFIG.keyless){
-    return await callKeyless(prompt, maxTokens);
+    return await callKeyless(prompt, maxTokens, plain);
   }
   // Opção A — backend/proxy (a chave fica no servidor)
   if(AI_CONFIG.proxyUrl){
     var rp = await fetch(AI_CONFIG.proxyUrl,{
       method:"POST", headers:{ "content-type":"application/json" },
-      body: JSON.stringify({ prompt:prompt, max_tokens:maxTokens })
+      body: JSON.stringify({ prompt:prompt, max_tokens:maxTokens, plain:!!plain })
     });
     if(!rp.ok) throw new Error("proxy HTTP "+rp.status);
     var dp = await rp.json();
@@ -934,7 +1104,9 @@ async function aiComplete(prompt, maxTokens){
     var r2 = await fetch("https://api.openai.com/v1/chat/completions",{
       method:"POST",
       headers:{ "content-type":"application/json","authorization":"Bearer "+key },
-      body: JSON.stringify({ model:model, temperature:0.6, messages:[{role:"system",content:"Você responde apenas com JSON válido em português do Brasil."},{role:"user",content:prompt}], response_format:{type:"json_object"} })
+      body: JSON.stringify(plain
+        ? { model:model, temperature:0.6, messages:[{role:"system",content:"Você é um consultor de branding e responde em português do Brasil, de forma direta e objetiva."},{role:"user",content:prompt}] }
+        : { model:model, temperature:0.6, messages:[{role:"system",content:"Você responde apenas com JSON válido em português do Brasil."},{role:"user",content:prompt}], response_format:{type:"json_object"} })
     });
     if(!r2.ok) throw new Error("HTTP "+r2.status);
     var d2 = await r2.json();
@@ -943,7 +1115,7 @@ async function aiComplete(prompt, maxTokens){
   throw new Error("provedor desconhecido");
 }
 
-async function callKeyless(prompt, maxTokens){
+async function callKeyless(prompt, maxTokens, plain){
   // 1) endpoint compatível com OpenAI (POST) — aberto, sem chave, aceita prompts longos
   try{
     var r = await fetch("https://text.pollinations.ai/openai",{
@@ -951,7 +1123,9 @@ async function callKeyless(prompt, maxTokens){
       body: JSON.stringify({
         model:"openai",
         messages:[
-          {role:"system",content:"Você responde APENAS com JSON válido em português do Brasil, sem markdown e sem texto extra."},
+          {role:"system",content: plain
+            ? "Você é um consultor sênior de branding e arquitetura de ambientes. Responde em português do Brasil, em texto corrido, direto e objetivo, sem markdown."
+            : "Você responde APENAS com JSON válido em português do Brasil, sem markdown e sem texto extra."},
           {role:"user",content:prompt}
         ],
         max_tokens:maxTokens,
@@ -973,6 +1147,476 @@ async function callKeyless(prompt, maxTokens){
   var txt = await r2.text();
   if(!txt || !txt.trim()) throw new Error("IA aberta retornou vazio");
   return txt;
+}
+
+
+/* ============================================================== *
+ *  CAMADA DE IA — integra o RELATÓRIO FINAL
+ *  1) Síntese estratégica: a IA lê o relatório inteiro (respostas +
+ *     análise + insights + paletas) e devolve uma leitura integrada,
+ *     com plano 30/60/90, riscos, indicadores e a 1ª ação.
+ *  2) Consultor: conversa sobre o diagnóstico já gerado, usando o
+ *     relatório completo como contexto.
+ * ============================================================== */
+
+/* --- contexto: transforma o relatório final em texto para a IA --- */
+function answersText(){
+  var A = currentAnswers(), STP = currentSteps(), out = [];
+  STP.forEach(function(s){ s.fields.forEach(function(f){
+    var v = (A[f.id]||"").trim(); if(v) out.push("- " + f.label + ": " + v);
+  }); });
+  return out.join("\n");
+}
+function reportContextText(){
+  var r = state.result || {}, L = [];
+  L.push("MARCA: " + brandName());
+  L.push("TIPO DE DIAGNÓSTICO: " + (state.mode==="nova" ? "criação de marca do zero" : "marca consolidada (marca + ambiente)"));
+  L.push("");
+  L.push("RESPOSTAS DO FORMULÁRIO:");
+  L.push(answersText() || "(sem respostas registradas)");
+  L.push("");
+  L.push("RELATÓRIO JÁ GERADO:");
+  if(state.mode==="nova"){
+    if(r.conceito) L.push("Conceito: " + r.conceito);
+    if(r.direcao)  L.push("Direção: " + r.direcao);
+    if(r.estilo){
+      if(r.estilo.palavras && r.estilo.palavras.length) L.push("Palavras de estilo: " + r.estilo.palavras.join(", "));
+      if(r.estilo.descricao) L.push("Estilo visual: " + r.estilo.descricao);
+    }
+    (r.tipografia||[]).forEach(function(t){ L.push("Tipografia (" + (t.uso||"") + "): " + (t.familia||"") + " — " + (t.justificativa||"")); });
+    (r.passos||[]).forEach(function(p,i){ L.push("Passo " + (i+1) + ": " + p); });
+  } else {
+    if(r.resumo) L.push("Resumo: " + r.resumo);
+    (r.analise||[]).forEach(function(b){ L.push("Análise — " + (b.titulo||"") + ": " + (b.texto||"")); });
+    (r.insights||[]).forEach(function(i){ L.push("Insight [" + normPri(i.prioridade) + "] " + (i.titulo||"") + ": " + (i.texto||"")); });
+  }
+  if(r.pesquisa){
+    var PQ = r.pesquisa;
+    L.push("");
+    L.push("PESQUISA DE INOVAÇÃO E REFERÊNCIAS" + (PQ.grounded ? " (busca online)" : " (repertório da IA)") + ":");
+    if(PQ.panorama) L.push("Panorama: " + PQ.panorama);
+    (PQ.referencias||[]).forEach(function(x){
+      L.push("Referência [" + (x.categoria||"") + "] " + (x.titulo||"") + ": " + (x.descricao||"")
+        + " | Por que serve: " + (x.porque||"") + " | Como aplicar: " + (x.aplicar||"")
+        + (x.fonte ? " | Fonte: " + x.fonte : ""));
+    });
+    (PQ.complementos||[]).forEach(function(c){ L.push("Complemento ao briefing — " + (c.topico||"") + ": " + (c.texto||"") + " → " + (c.acao||"")); });
+  }
+  (r.paletas||[]).forEach(function(p){
+    L.push("Paleta \"" + (p.nome||"") + "\" (" + (p.conceito||"") + "): " +
+      (p.cores||[]).map(function(c){ return (c.hex||"") + " " + (c.nome||"") + " — " + (c.uso||""); }).join(" | "));
+  });
+  return L.join("\n");
+}
+
+/* --- 1) SÍNTESE ESTRATÉGICA INTEGRADA --- */
+function buildSintesePrompt(){
+  return "Você é um diretor de estratégia de marca sênior. Abaixo está o diagnóstico COMPLETO de uma marca, já gerado. "
+    + "Sua tarefa NÃO é repetir o que já está escrito: é INTEGRAR tudo numa leitura única — conectar as respostas, a análise, "
+    + "os insights e as paletas em um só raciocínio, apontar o que se reforça e o que se contradiz, e transformar isso em um "
+    + "plano executável. Se houver pesquisa de referências no material, incorpore-a ao raciocínio. "
+    + "Escreva em português do Brasil, específico para esta marca, sem inventar fatos que não estejam no material.\n\n"
+    + reportContextText()
+    + "\n\nResponda SOMENTE com um objeto JSON válido (sem markdown, sem cercas de código, sem texto antes ou depois) neste schema:\n"
+    + '{ "frase":"uma frase-síntese memorável do diagnóstico (até 15 palavras)", '
+    + '"diagnostico":"4 a 6 frases integrando identidade, ambiente/estilo, comunicação e objetivos: qual é o quadro geral e a raiz do problema ou da oportunidade", '
+    + '"conexoes":[{"titulo":"nome do padrão observado","texto":"1 a 2 frases explicando como dois ou mais pontos do diagnóstico se conectam"}], '
+    + '"plano":[{"fase":"0–30 dias","foco":"foco da fase em poucas palavras","acoes":["ação concreta","ação concreta"]}], '
+    + '"riscos":["risco ou armadilha a evitar"], '
+    + '"indicadores":["como medir se está funcionando"], '
+    + '"primeira_acao":"a ÚNICA coisa que deve ser feita primeiro, em uma frase" }\n'
+    + "Regras: 'conexoes' com 2 a 4 itens; 'plano' com exatamente 3 fases (0–30 dias, 30–60 dias, 60–90 dias), cada uma com 2 a 4 ações; "
+    + "'riscos' com 2 a 4 itens; 'indicadores' com 2 a 4 itens. Seja concreto e aplicável a marca, ambiente físico e comunicação visual.";
+}
+async function runSintese(force){
+  if(!aiAvailable()){ state.sinteseError="IA não disponível."; render(); return; }
+  if(state.sinteseLoading) return;
+  if(state.result && state.result.sintese && !force) return;
+  state.sinteseLoading = true; state.sinteseError = ""; render();
+  try{
+    var txt = await aiComplete(buildSintesePrompt(), 2200);
+    txt = String(txt).replace(/```json/gi,"").replace(/```/g,"").trim();
+    var f = txt.indexOf("{"), l = txt.lastIndexOf("}");
+    if(f<0||l<0) throw new Error("formato inesperado");
+    var d = JSON.parse(txt.slice(f,l+1));
+    if(!d || !(d.diagnostico || d.frase)) throw new Error("resposta vazia");
+    state.result.sintese = d;
+    state.sinteseLoading = false;
+    updateSubmissionResult(state.recId, state.result);
+    render();
+    if(RESEARCH_CONFIG.autoPesquisa !== false && !state.result.pesquisa) runPesquisa(true);
+  }catch(e){
+    state.sinteseLoading = false;
+    state.sinteseError = "Não foi possível gerar a síntese (" + (e.message||"erro") + ").";
+    render();
+    if(RESEARCH_CONFIG.autoPesquisa !== false && !state.result.pesquisa) runPesquisa(true);
+  }
+}
+function renderSintese(idx){
+  var r = state.result || {}, S = r.sintese;
+  var head = '<div class="block"><h3><span class="idx">'+idx+'</span> Síntese estratégica integrada</h3>';
+  var body = '<div class="aiwrap">'
+    + '<div class="ai-head"><span class="ai-dot"></span><span class="ai-tag">Leitura integrada por IA · '+aiLabel()+'</span></div>';
+
+  if(state.sinteseLoading){
+    return head + body + '<div class="ai-loading"><div class="spin"></div><span>A IA está cruzando todas as partes do relatório para montar a leitura final…</span></div></div></div>';
+  }
+  if(!S){
+    if(!aiAvailable()){
+      return head + body + '<p class="ai-msg">A síntese integrada precisa de IA ativa. Ative a IA integrada ou informe uma chave no painel <b>Modo IA</b> para que o relatório seja consolidado automaticamente.</p></div></div>';
+    }
+    var errMsg = state.sinteseError ? '<p class="ai-msg err">'+esc(state.sinteseError)+'</p>' : '<p class="ai-msg">A IA pode ler todo o relatório acima e devolver uma leitura única, com plano de 90 dias, riscos e indicadores.</p>';
+    return head + body + errMsg + '<div class="no-print" style="margin-top:12px"><button class="ai-mini primary" data-sintese="1">'+(state.sinteseError?'Tentar de novo':'Gerar síntese integrada')+'</button></div></div></div>';
+  }
+
+  var html = head + body;
+  if(S.frase) html += '<div class="ai-frase">'+esc(S.frase)+'</div>';
+  if(S.diagnostico) html += '<p class="ai-diag">'+esc(S.diagnostico)+'</p>';
+
+  if(S.conexoes && S.conexoes.length){
+    html += '<div class="ai-sub"><h5>O que se conecta</h5>'
+      + S.conexoes.map(function(c){ return '<div class="ai-conex"><b>'+esc(c.titulo||"")+'</b><span>'+esc(c.texto||"")+'</span></div>'; }).join("")
+      + '</div>';
+  }
+  if(S.plano && S.plano.length){
+    html += '<div class="ai-sub"><h5>Plano de 90 dias</h5><div class="ai-plano">'
+      + S.plano.map(function(p){
+          return '<div class="ai-fase"><div class="fs">'+esc(p.fase||"")+'</div><div class="fo">'+esc(p.foco||"")+'</div><ul>'
+            + (p.acoes||[]).map(function(a){ return '<li>'+esc(a)+'</li>'; }).join("") + '</ul></div>';
+        }).join("")
+      + '</div></div>';
+  }
+  var cols = "";
+  if(S.riscos && S.riscos.length)
+    cols += '<div><h5>Riscos a evitar</h5><ul class="ai-list">'+S.riscos.map(function(x){return '<li>'+esc(x)+'</li>';}).join("")+'</ul></div>';
+  if(S.indicadores && S.indicadores.length)
+    cols += '<div><h5>Como medir</h5><ul class="ai-list">'+S.indicadores.map(function(x){return '<li>'+esc(x)+'</li>';}).join("")+'</ul></div>';
+  if(cols) html += '<div class="ai-sub"><div class="ai-cols">'+cols+'</div></div>';
+
+  if(S.primeira_acao)
+    html += '<div class="ai-first"><b>Comece por aqui</b><span>'+esc(S.primeira_acao)+'</span></div>';
+
+  if(aiAvailable() && !state.fromAdmin)
+    html += '<div class="no-print" style="margin-top:14px"><button class="ai-mini" data-sintese="1">↻ Refazer síntese</button></div>';
+
+  return html + '</div></div>';
+}
+
+/* --- 2) CONSULTOR: conversa sobre o relatório final --- */
+function chatSuggestions(){
+  return state.mode==="nova"
+    ? ["Por onde eu começo com pouco orçamento?","Qual paleta combina mais com o meu público e por quê?","Como aplicar essa direção na fachada e na vitrine?","O que eu devo evitar na identidade?"]
+    : ["Qual o primeiro passo com pouco orçamento?","Como aplicar a paleta no ambiente físico?","O que priorizar na comunicação visual da loja?","Como isso muda a experiência do meu cliente?"];
+}
+function buildChatPrompt(question){
+  var hist = state.chat.filter(function(m){ return m.role!=="err"; }).slice(-8).map(function(m){
+    return (m.role==="me" ? "PERGUNTA: " : "RESPOSTA: ") + m.text;
+  }).join("\n");
+  return "Você é o consultor de branding e arquitetura de ambientes responsável pelo diagnóstico abaixo. "
+    + "Responda à pergunta do cliente usando SOMENTE o diagnóstico como base — ele é o seu contexto. "
+    + "Se a informação não estiver no material, diga com franqueza o que faltaria saber. "
+    + "Responda em português do Brasil, em texto corrido, direto e prático (no máximo 180 palavras), sem markdown, sem títulos e sem listas numeradas.\n\n"
+    + "=== DIAGNÓSTICO ===\n" + reportContextText() + "\n=== FIM DO DIAGNÓSTICO ===\n\n"
+    + (hist ? "Conversa até aqui:\n" + hist + "\n\n" : "")
+    + "PERGUNTA DO CLIENTE: " + question;
+}
+async function chatAsk(question){
+  question = String(question||"").trim();
+  if(!question || state.chatBusy) return;
+  if(!aiAvailable()){ state.chat.push({role:"err",text:"IA não disponível para responder."}); render(); return; }
+  state.chat.push({role:"me", text:question});
+  state.chatDraft = ""; state.chatBusy = true; render();
+  try{
+    var txt = await aiComplete(buildChatPrompt(question), 900, true);
+    txt = String(txt||"").replace(/```/g,"").trim();
+    if(!txt) throw new Error("resposta vazia");
+    state.chat.push({role:"ia", text:txt});
+  }catch(e){
+    state.chat.push({role:"err", text:"Não foi possível responder agora (" + (e.message||"erro") + "). Tente de novo."});
+  }
+  state.chatBusy = false; render();
+}
+function renderChat(idx){
+  var html = '<div class="block no-print"><h3><span class="idx">'+idx+'</span> Converse com a IA sobre este diagnóstico</h3><div class="aiwrap">'
+    + '<div class="ai-head"><span class="ai-dot"></span><span class="ai-tag">Consultor · '+aiLabel()+'</span></div>';
+  if(!aiAvailable()){
+    return html + '<p class="ai-msg">Para conversar sobre o diagnóstico, ative a IA integrada ou informe uma chave no painel <b>Modo IA</b>.</p></div></div>';
+  }
+  html += '<p class="chat-intro">A IA já leu todo o relatório acima. Pergunte como aplicar, o que priorizar ou por que uma recomendação faz sentido para a sua realidade.</p>';
+
+  if(!state.chat.length){
+    html += '<div class="chat-sugs">' + chatSuggestions().map(function(q){
+      return '<button class="chat-sug" data-ask="'+esc(q)+'">'+esc(q)+'</button>';
+    }).join("") + '</div>';
+  }
+
+  html += '<div class="chat-msgs" id="chat-msgs">' + state.chat.map(function(m){
+    if(m.role==="me")  return '<div class="bub me"><span class="who">Você</span>'+esc(m.text)+'</div>';
+    if(m.role==="err") return '<div class="bub err">'+esc(m.text)+'</div>';
+    return '<div class="bub ia"><span class="who">Consultor IA</span>'+esc(m.text)+'</div>';
+  }).join("") + (state.chatBusy ? '<div class="bub ia"><span class="who">Consultor IA</span><span class="ai-loading"><span class="spin"></span>escrevendo…</span></div>' : '') + '</div>';
+
+  html += '<div class="chat-form">'
+    + '<textarea data-chatinput placeholder="Ex.: como eu aplico isso na entrada da loja?"'+(state.chatBusy?' disabled':'')+'>'+esc(state.chatDraft)+'</textarea>'
+    + '<button class="chat-send" data-chatsend="1"'+(state.chatBusy?' disabled':'')+'>'+(state.chatBusy?'…':'Perguntar')+'</button>'
+    + '</div>';
+  html += '<div class="chat-foot">Enter envia · Shift+Enter quebra linha. As respostas usam apenas este diagnóstico como contexto.</div>';
+  return html + '</div></div>';
+}
+
+/* --- atualiza o registro já salvo (para a síntese entrar no histórico) --- */
+function updateSubmissionResult(id, result){
+  if(!id) return;
+  try{
+    var q = outboxAll(), found = false;
+    for(var i=0;i<q.length;i++){ if(q[i].id===id){ q[i].result = JSON.parse(JSON.stringify(result||{})); found=true; break; } }
+    if(found){ outboxSave(q); flushOutbox(); return; }
+    if(ADMIN_CONFIG.collectorUrl){
+      fetch(ADMIN_CONFIG.collectorUrl, { method:"POST", headers:{"content-type":"application/json"},
+        body: JSON.stringify({ action:"update", id:id, result:result }) }).catch(function(){});
+    }
+  }catch(e){}
+}
+
+
+/* ============================================================== *
+ *  PESQUISA ONLINE + REFERÊNCIAS VISUAIS
+ *  A IA busca na web inovações gráficas e arquitetônicas do nicho
+ *  da marca, cruza com o briefing e devolve referências ilustradas.
+ * ============================================================== */
+
+/* ---- chamada com BUSCA WEB real (quando o provedor permite) ---- */
+async function aiWebSearch(prompt, maxTokens){
+  var embedded = AI_CONFIG.embeddedKey && AI_CONFIG.embeddedProvider;
+  var prov  = embedded ? AI_CONFIG.embeddedProvider : state.ai.provider;
+  var key   = (embedded ? AI_CONFIG.embeddedKey : state.ai.key || "").trim();
+  var model = (embedded && AI_CONFIG.embeddedModel) ? AI_CONFIG.embeddedModel
+              : (state.ai.model.trim() || (prov==="openai" ? "gpt-4o-mini" : "claude-sonnet-4-6"));
+
+  // 1) proxy próprio — repassa o pedido de busca ao backend
+  if(AI_CONFIG.proxyUrl){
+    var rp = await fetch(AI_CONFIG.proxyUrl,{ method:"POST", headers:{"content-type":"application/json"},
+      body: JSON.stringify({ prompt:prompt, max_tokens:maxTokens, web_search:true }) });
+    if(!rp.ok) throw new Error("proxy HTTP "+rp.status);
+    var dp = await rp.json();
+    return { text: dp.text || dp.content || "", grounded: dp.web_search !== false };
+  }
+  // 2) Anthropic — ferramenta web_search do servidor
+  if(!AI_CONFIG.keyless && prov==="anthropic" && key){
+    var ra = await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{ "content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true" },
+      body: JSON.stringify({ model:model, max_tokens:maxTokens,
+        tools:[{ type:"web_search_20250305", name:"web_search", max_uses:6 }],
+        messages:[{role:"user",content:prompt}] })
+    });
+    if(!ra.ok) throw new Error("HTTP "+ra.status);
+    var da = await ra.json();
+    var used = (da.content||[]).some(function(b){ return b.type==="server_tool_use" || b.type==="web_search_tool_result"; });
+    return { text:(da.content||[]).map(function(b){return b.type==="text"?b.text:"";}).join(""), grounded:used };
+  }
+  // 3) OpenAI — Responses API com web_search
+  if(!AI_CONFIG.keyless && prov==="openai" && key){
+    var ro = await fetch("https://api.openai.com/v1/responses",{
+      method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+key },
+      body: JSON.stringify({ model:model, input:prompt, tools:[{type:"web_search"}] })
+    });
+    if(!ro.ok) throw new Error("HTTP "+ro.status);
+    var dobj = await ro.json();
+    var txt = "", grounded = false;
+    (dobj.output||[]).forEach(function(o){
+      if(o.type==="web_search_call") grounded = true;
+      (o.content||[]).forEach(function(c){ if(c.type==="output_text" && c.text) txt += c.text; });
+    });
+    return { text:txt, grounded:grounded };
+  }
+  // 4) IA aberta (Pollinations) — modelo com acesso a busca
+  if(AI_CONFIG.keyless){
+    var rk = await fetch("https://text.pollinations.ai/openai",{
+      method:"POST", headers:{ "content-type":"application/json" },
+      body: JSON.stringify({ model:"searchgpt",
+        messages:[
+          {role:"system",content:"Você pesquisa na web e responde APENAS com JSON válido em português do Brasil, sem markdown e sem texto extra."},
+          {role:"user",content:prompt}
+        ], max_tokens:maxTokens, referrer:"ferrabisk-diagnostico" })
+    });
+    if(!rk.ok) throw new Error("HTTP "+rk.status);
+    var dk = await rk.json();
+    var tk = (dk && dk.choices && dk.choices[0] && dk.choices[0].message) ? dk.choices[0].message.content
+           : (typeof dk==="string" ? dk : (dk && dk.text) ? dk.text : "");
+    if(!tk || !String(tk).trim()) throw new Error("busca vazia");
+    return { text:tk, grounded:true };
+  }
+  throw new Error("busca web indisponível");
+}
+
+/* ---- prompt da pesquisa ---- */
+function briefingTopicsText(){
+  var A = currentAnswers(), STP = currentSteps(), out = [];
+  STP.forEach(function(sec){
+    var vals = sec.fields.map(function(f){ var v=(A[f.id]||"").trim(); return v ? f.label+": "+v : ""; }).filter(Boolean);
+    if(vals.length) out.push("• " + sec.title + " → " + vals.join(" | "));
+  });
+  return out.join("\n");
+}
+function buildPesquisaPrompt(){
+  var A = currentAnswers();
+  var nicho = (A.segmento || A.nicho || A.ramo || "").trim();
+  var pal = ((state.result&&state.result.paletas)||[]).slice(0,2).map(function(p){
+    return (p.nome||"") + " (" + (p.cores||[]).map(function(c){return c.hex;}).join(", ") + ")";
+  }).join(" / ");
+  var n = Math.max(4, Math.min(10, RESEARCH_CONFIG.qtdReferencias||6));
+  return "Você é pesquisador de tendências de design gráfico e arquitetura comercial. PESQUISE NA INTERNET o que há de mais atual "
+    + "e inovador em IDENTIDADE VISUAL / DESIGN GRÁFICO e em ARQUITETURA DE AMBIENTES COMERCIAIS para o segmento desta marca, "
+    + "e traga referências reais e verificáveis (estúdios, projetos, marcas, prêmios, publicações de design). "
+    + "Priorize o que é RECENTE e o que representa inovação de verdade, não lugar-comum.\n\n"
+    + "MARCA: " + brandName() + (nicho ? "\nSEGMENTO/NICHO: " + nicho : "")
+    + (pal ? "\nPALETAS JÁ DEFINIDAS NO DIAGNÓSTICO: " + pal : "")
+    + "\n\nTÓPICOS DO BRIEFING (a pesquisa deve COMPLEMENTAR cada um deles, não repeti-los):\n"
+    + (briefingTopicsText() || "(sem briefing)")
+    + "\n\nDIAGNÓSTICO JÁ GERADO (para não repetir o que já foi dito):\n" + reportContextText()
+    + "\n\nResponda SOMENTE com um objeto JSON válido (sem markdown, sem cercas de código, sem texto antes ou depois) neste schema:\n"
+    + '{ "panorama":"3 a 5 frases sobre o que está acontecendo agora no design gráfico e na arquitetura comercial deste segmento, com o que a pesquisa encontrou", '
+    + '"referencias":[{"titulo":"nome curto da ideia ou inovação","categoria":"grafica" ou "arquitetonica","descricao":"2 a 3 frases descrevendo a inovação: o que é, materiais, técnica, efeito visual","porque":"1 a 2 frases ligando explicitamente a uma resposta do briefing desta marca","aplicar":"como aplicar de forma concreta e viável nesta marca","prompt_visual":"descrição visual em INGLÊS, rica e concreta, para gerar uma imagem ilustrativa da ideia (cenário, materiais, luz, cores, ângulo). Sem texto, sem letras, sem logotipos na imagem","busca":"3 a 6 palavras de busca em inglês para achar projetos reais","fonte":"estúdio, projeto, marca ou publicação real de onde vem a referência (ou vazio se não houver)"}], '
+    + '"complementos":[{"topico":"nome do tópico do briefing","texto":"o que a pesquisa acrescenta a este tópico que ainda não foi dito","acao":"desdobramento prático"}], '
+    + '"fontes":["url ou nome da fonte consultada"] }\n'
+    + "Regras: exatamente " + n + " itens em 'referencias', sendo pelo menos " + Math.ceil(n*0.6) + " da categoria \"grafica\" "
+    + "(identidade, tipografia, sinalização, embalagem, papelaria, vitrine gráfica, aplicações digitais) e o restante \"arquitetonica\" "
+    + "(fachada, layout, iluminação, materiais, mobiliário, experiência no espaço); 'complementos' com 3 a 5 itens amarrados a tópicos que "
+    + "realmente aparecem no briefing; 'fontes' com o que foi efetivamente consultado (lista vazia se não houve consulta online). "
+    + "Nunca invente fontes: se não pesquisou, deixe 'fontes' vazio. Seja específico ao segmento e coerente com as paletas já definidas.";
+}
+
+/* ---- execução ---- */
+async function runPesquisa(force){
+  if(!aiAvailable()){ state.pesquisaError="IA não disponível."; render(); return; }
+  if(state.pesquisaLoading) return;
+  if(state.result && state.result.pesquisa && !force) return;
+  state.pesquisaLoading = true; state.pesquisaError = ""; render();
+  var prompt = buildPesquisaPrompt(), raw = "", grounded = false;
+  try{
+    if(RESEARCH_CONFIG.web !== false){
+      try{
+        var w = await aiWebSearch(prompt, 3200);
+        if(w && w.text && String(w.text).trim()){ raw = w.text; grounded = !!w.grounded; }
+      }catch(e){ /* cai para o modo sem busca */ }
+    }
+    if(!raw){ raw = await aiComplete(prompt, 3200); grounded = false; }
+    var txt = String(raw).replace(/```json/gi,"").replace(/```/g,"").trim();
+    var f = txt.indexOf("{"), l = txt.lastIndexOf("}");
+    if(f<0||l<0) throw new Error("formato inesperado");
+    var d = JSON.parse(txt.slice(f,l+1));
+    if(!d || !(d.referencias && d.referencias.length)) throw new Error("nenhuma referência retornada");
+    d.grounded = grounded;
+    d.ts = Date.now();
+    state.result.pesquisa = d;
+    state.pesquisaLoading = false;
+    updateSubmissionResult(state.recId, state.result);
+    render();
+  }catch(e){
+    state.pesquisaLoading = false;
+    state.pesquisaError = "Não foi possível concluir a pesquisa (" + (e.message||"erro") + ").";
+    render();
+  }
+}
+
+/* ---- imagem ilustrativa + links de busca ---- */
+function refSeed(str){ var h=0, x=String(str||""); for(var i=0;i<x.length;i++){ h=(h*31 + x.charCodeAt(i))|0; } return Math.abs(h)%99999; }
+function refImgUrl(item){
+  var base = (item.prompt_visual || item.descricao || item.titulo || "design reference").toString().slice(0,320);
+  var pal = ((state.result&&state.result.paletas&&state.result.paletas[0]&&state.result.paletas[0].cores)||[])
+              .slice(0,3).map(function(c){return c.hex;}).join(", ");
+  var q = base + ". Editorial design photography, realistic, high detail, natural light"
+        + (pal ? ", color palette " + pal : "") + ". No text, no letters, no logos, no watermark.";
+  return "https://image.pollinations.ai/prompt/" + encodeURIComponent(q)
+    + "?width=" + (RESEARCH_CONFIG.imgW||768) + "&height=" + (RESEARCH_CONFIG.imgH||512)
+    + "&model=" + encodeURIComponent(RESEARCH_CONFIG.imgModel||"flux")
+    + "&nologo=true&seed=" + refSeed(item.titulo);
+}
+function refLinks(item){
+  var q = (item.busca || item.titulo || "").toString().trim();
+  if(!q) return "";
+  var e = encodeURIComponent(q), arq = deaccent(String(item.categoria||"")).indexOf("arq")===0;
+  var L = [];
+  L.push('<a href="https://www.google.com/search?tbm=isch&q='+e+'" target="_blank" rel="noopener">Google Imagens ↗</a>');
+  L.push('<a href="https://www.pinterest.com/search/pins/?q='+e+'" target="_blank" rel="noopener">Pinterest ↗</a>');
+  L.push(arq
+    ? '<a href="https://www.archdaily.com.br/search/br/all?q='+e+'" target="_blank" rel="noopener">ArchDaily ↗</a>'
+    : '<a href="https://www.behance.net/search/projects?search='+e+'" target="_blank" rel="noopener">Behance ↗</a>');
+  return '<div class="ref-links no-print">'+L.join("")+'</div>';
+}
+
+/* ---- render ---- */
+function renderPesquisa(idx){
+  var r = state.result || {}, P = r.pesquisa;
+  var head = '<div class="block"><h3><span class="idx">'+idx+'</span> Pesquisa de inovação &amp; referências visuais</h3>';
+  var open = '<div class="aiwrap"><div class="ai-head"><span class="ai-dot"></span><span class="ai-tag">'
+    + (P && P.grounded ? 'Pesquisa online por IA · ' : 'Repertório da IA · ') + aiLabel() + '</span></div>';
+
+  if(state.pesquisaLoading){
+    return head + open + '<div class="ai-loading"><div class="spin"></div><span>Pesquisando inovações gráficas e arquitetônicas para o seu segmento e montando as referências visuais…</span></div></div></div>';
+  }
+  if(!P){
+    if(!aiAvailable())
+      return head + open + '<p class="ai-msg">A pesquisa de referências precisa de IA ativa. Ative a IA integrada ou informe uma chave no painel <b>Modo IA</b>.</p></div></div>';
+    var msg = state.pesquisaError
+      ? '<p class="ai-msg err">'+esc(state.pesquisaError)+'</p>'
+      : '<p class="ai-msg">A IA pode pesquisar inovações gráficas e arquitetônicas do seu segmento e trazer referências ilustradas, ligadas a cada tópico do seu briefing.</p>';
+    return head + open + msg + '<div class="no-print" style="margin-top:12px"><button class="ai-mini primary" data-pesquisa="1">'
+      + (state.pesquisaError?'Tentar de novo':'Pesquisar referências') + '</button></div></div></div>';
+  }
+
+  var html = head + open;
+  if(P.panorama) html += '<p class="pq-pan">'+esc(P.panorama)+'</p>';
+  html += P.grounded
+    ? '<p class="pq-src">Referências levantadas em busca online no momento da geração.</p>'
+    : '<p class="pq-src">Sem acesso de busca no momento: referências vindas do repertório da IA — confirme os projetos citados antes de usar como fonte.</p>';
+
+  if(P.referencias && P.referencias.length){
+    html += '<div class="refs">' + P.referencias.map(function(it){
+      var arq = deaccent(String(it.categoria||"")).indexOf("arq")===0;
+      var img = "";
+      if(RESEARCH_CONFIG.imagens !== false){
+        img = '<div class="ref-img"><div class="ph">gerando imagem…</div>'
+            + '<img loading="lazy" alt="Referência ilustrativa: '+esc(it.titulo||"")+'" src="'+esc(refImgUrl(it))+'" '
+            + 'onload="this.classList.add(\'on\');var p=this.parentNode.querySelector(\'.ph\');if(p)p.style.display=\'none\';" '
+            + 'onerror="this.style.display=\'none\';var p=this.parentNode.querySelector(\'.ph\');if(p)p.textContent=\'imagem indisponível\';">'
+            + '<span class="ref-cat '+(arq?'arq':'graf')+'">'+(arq?'Arquitetura':'Gráfico')+'</span></div>';
+      }
+      var body = '<div class="ref-body"><h4>'+esc(it.titulo||"")+'</h4>';
+      if(!img) body += '<span class="ref-lab">'+(arq?'Arquitetura':'Gráfico')+'</span>';
+      if(it.descricao) body += '<p>'+esc(it.descricao)+'</p>';
+      if(it.porque)    body += '<p class="why">'+esc(it.porque)+'</p>';
+      if(it.aplicar)   body += '<p><span class="ref-lab">Como aplicar</span><br>'+esc(it.aplicar)+'</p>';
+      if(it.fonte)     body += '<div class="ref-fonte">Ref.: '+esc(it.fonte)+'</div>';
+      body += refLinks(it) + '</div>';
+      return '<div class="ref">'+img+body+'</div>';
+    }).join("") + '</div>';
+  }
+
+  if(P.complementos && P.complementos.length){
+    html += '<div class="ai-sub"><h5>Complementos ao seu briefing</h5>'
+      + P.complementos.map(function(c){
+          return '<div class="comp"><b>'+esc(c.topico||"")+'</b><span>'+esc(c.texto||"")+'</span>'
+            + (c.acao?'<em>→ '+esc(c.acao)+'</em>':'') + '</div>';
+        }).join("") + '</div>';
+  }
+
+  if(P.fontes && P.fontes.length){
+    html += '<div class="ai-sub"><h5>Fontes consultadas</h5><ul class="pq-fontes">'
+      + P.fontes.map(function(f){
+          var v = String(f||"");
+          return '<li>' + (/^https?:\/\//.test(v) ? '<a href="'+esc(v)+'" target="_blank" rel="noopener">'+esc(v)+'</a>' : esc(v)) + '</li>';
+        }).join("") + '</ul></div>';
+  }
+
+  if(RESEARCH_CONFIG.imagens !== false)
+    html += '<p class="pq-src">As imagens são ilustrações geradas por IA para representar a ideia — use os links de cada card para ver projetos reais.</p>';
+
+  if(aiAvailable())
+    html += '<div class="no-print" style="margin-top:14px"><button class="ai-mini" data-pesquisa="1">↻ Nova pesquisa</button></div>';
+
+  return html + '</div></div>';
 }
 
 function normPri(x){ var v=deaccent(String(x||"media")); if(v.indexOf("alt")===0) return "alta"; if(v.indexOf("baix")===0) return "baixa"; return "media"; }
