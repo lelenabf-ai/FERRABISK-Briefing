@@ -727,17 +727,18 @@ function renderForm(){
   var aiErr = state.aiError ? '<p class="warn">'+esc(state.aiError)+'</p>' : "";
   var last = state.step===STP.length-1;
   var aiPanel = last ? (aiIntegrated() ? "" : renderAiPanel()) : "";
-  var goLabel = last ? (nova ? "Gerar direção de marca" : "Gerar diagnóstico") : "Avançar →";
+  var goLabel = last ? (nova ? "Gerar direção de marca com IA integrada" : "Gerar diagnóstico com IA integrada") : "Avançar →";
+  var goTitle = "Usa IA integrada de acesso aberto — sem chave, sem cadastro e sem instalar nada, só precisa de internet. Se nenhum provedor responder, o relatório sai no mesmo instante em modo local.";
   var semIABtn = last
-    ? '<button class="btn" data-semia="1" title="Gera o relatório completo usando apenas o motor local, sem enviar nada para fora">Gerar sem IA</button>'
+    ? '<button class="btn" data-semia="1" title="Gera o relatório completo usando apenas o motor local deste navegador, sem IA e sem enviar nada para fora">Gerar sem IA</button>'
     : '';
   var nav = '<div class="nav no-print">'
     + (state.step>0 ? '<button class="btn" data-go="'+(state.step-1)+'">← Voltar</button>' : '<button class="btn" data-home="1">← Início</button>')
     + '<div class="nav-right">' + semIABtn
-    + '<button class="btn primary" data-next="1">'+goLabel+'</button></div></div>';
+    + '<button class="btn primary" data-next="1"'+(last?' title="'+esc(goTitle)+'"':'')+'>'+goLabel+'</button></div></div>';
 
   var privTxt = last
-    ? 'Com IA, as respostas são enviadas ao provedor apenas no momento de gerar. Em “Gerar sem IA”, tudo é calculado neste navegador e nada sai daqui.'
+    ? 'Em “…com IA integrada”, as respostas são enviadas a um provedor aberto (sem chave, sem cadastro) apenas no momento de gerar. Em “Gerar sem IA”, tudo é calculado neste navegador e nada sai daqui.'
     : 'As respostas ficam apenas neste navegador.';
 
   return prog + '<section class="card"><div class="sechead"><div class="eyebrow">'+(nova?"Marca nova":"Marca consolidada")+' · Etapa '+(state.step+1)+' de '+STP.length+'</div><h2>'+esc(s.title)+'</h2></div>'
