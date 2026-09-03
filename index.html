@@ -61,11 +61,10 @@
     { nome:"Hermes",
       base:"https://hermes.ai.unturf.com/v1",
       auth:"",
-      preferidos:["hermes"] },
-    { nome:"Pollinations",
-      base:"https://gen.pollinations.ai/v1",
-      auth:"",
-      preferidos:["openai-fast","openai"] }
+      preferidos:["hermes"] }
+    /* Pollinations (https://gen.pollinations.ai/v1) passou a exigir chave própria
+       (HTTP 401 "A valid API key is required") e por isso saiu da lista sem chave —
+       sempre falharia aqui. Se um dia voltar a ser aberto, é só reincluir. */
   ];
 
   var AI_CONFIG = {
@@ -1195,10 +1194,16 @@ function provedoresOrdenados(){
   return lista;
 }
 
-/* descobre um modelo servido pelo provedor */
-async function descobrirModelo(p){
+/* descobre, em ordem de prioridade, os modelos que podem ser tentados neste provedor
+   (o que já funcionou da última vez primeiro; depois os "preferidos" que existirem
+   no catálogo atual; por fim o resto do catálogo). Devolve uma lista, não um único
+   nome, porque um modelo específico pode estar fora do ar mesmo com o provedor no ar
+   — nesse caso vale tentar o próximo antes de desistir do provedor inteiro. */
+async function descobrirModelos(p){
+  var candidatos = [];
+  var add = function(id){ if(id && candidatos.indexOf(id)<0) candidatos.push(id); };
   var c = keylessCacheGet();
-  if(c && c.nome===p.nome && c.modelo) return c.modelo;
+  if(c && c.nome===p.nome) add(c.modelo);
   try{
     var r = await fetchTimeout(p.base + "/models", { headers: provHeaders(p) }, 15000);
     if(!r.ok) throw new Error("HTTP "+r.status);
@@ -1211,39 +1216,49 @@ async function descobrirModelo(p){
     var pref = p.preferidos || [];
     for(var i=0;i<pref.length;i++){
       for(var j=0;j<ids.length;j++){
-        if(norm(ids[j]).indexOf(norm(pref[i]))>=0) return ids[j];
+        if(norm(ids[j]).indexOf(norm(pref[i]))>=0){ add(ids[j]); break; }
       }
     }
-    return ids[0];
+    ids.forEach(add);
   }catch(e){
-    // sem catálogo: tenta o primeiro nome preferido como palpite
-    return (p.preferidos && p.preferidos[0]) || "gpt-4o-mini";
+    // sem catálogo: tenta os nomes preferidos como palpite
+    (p.preferidos||[]).forEach(add);
+    add("gpt-4o-mini");
   }
+  return candidatos.slice(0,4); // limite para não encadear tentativas demais num provedor só
 }
 
-/* uma tentativa em um provedor */
+/* uma tentativa em um provedor: percorre os modelos candidatos até um funcionar.
+   Um modelo recusado (400/404 = não existe/está fora do ar) passa para o próximo
+   candidato do MESMO provedor; qualquer outro erro (limite de uso, autenticação,
+   fora do ar, tempo esgotado) já indica o provedor inteiro, então sobe na hora. */
 async function tentarProvedor(p, mensagens, maxTokens){
-  var modelo = await descobrirModelo(p);
-  var r = await fetchTimeout(p.base + "/chat/completions", {
-    method:"POST", headers: provHeaders(p),
-    body: JSON.stringify({ model:modelo, messages:mensagens, max_tokens:maxTokens, temperature:0.6 })
-  });
-  if(!r.ok){
-    // modelo recusado: limpa a memória para redescobrir na próxima
-    if(r.status===400 || r.status===404) keylessCacheClear();
-    var detalhe = "";
-    try{ var eb = await r.clone().json(); detalhe = (eb && (eb.error && (eb.error.message||eb.error)) ) || eb.message || ""; }
-    catch(e){ try{ detalhe = (await r.text()).trim(); }catch(e2){} }
-    detalhe = String(detalhe||"").replace(/\s+/g," ").slice(0,140);
-    throw new Error(httpMsg(r.status, p.nome) + (detalhe ? " — "+detalhe : "") + " · modelo tentado: "+modelo);
+  var candidatos = await descobrirModelos(p), erroFinal = null;
+  for(var i=0;i<candidatos.length;i++){
+    var modelo = candidatos[i], ehUltimo = (i===candidatos.length-1);
+    var r = await fetchTimeout(p.base + "/chat/completions", {
+      method:"POST", headers: provHeaders(p),
+      body: JSON.stringify({ model:modelo, messages:mensagens, max_tokens:maxTokens, temperature:0.6 })
+    });
+    if(!r.ok){
+      var detalhe = "";
+      try{ var eb = await r.clone().json(); detalhe = (eb && (eb.error && (eb.error.message||eb.error)) ) || eb.message || ""; }
+      catch(e){ try{ detalhe = (await r.text()).trim(); }catch(e2){} }
+      detalhe = String(detalhe||"").replace(/\s+/g," ").slice(0,140);
+      erroFinal = new Error(httpMsg(r.status, p.nome) + (detalhe ? " — "+detalhe : "") + " · modelo tentado: "+modelo);
+      var modeloRecusado = (r.status===400 || r.status===404);
+      if(modeloRecusado){ keylessCacheClear(); if(!ehUltimo) continue; }
+      throw erroFinal;
+    }
+    var d = await r.json();
+    var t = (d && d.choices && d.choices[0] && d.choices[0].message) ? d.choices[0].message.content
+          : (d && (d.text || d.content)) || "";
+    if(!t || !String(t).trim()){ erroFinal = new Error(p.nome + " retornou vazio"); if(!ehUltimo) continue; throw erroFinal; }
+    keylessCacheSet({ nome:p.nome, modelo:modelo, ts:Date.now() });
+    state.iaProvedor = p.nome;
+    return t;
   }
-  var d = await r.json();
-  var t = (d && d.choices && d.choices[0] && d.choices[0].message) ? d.choices[0].message.content
-        : (d && (d.text || d.content)) || "";
-  if(!t || !String(t).trim()) throw new Error(p.nome + " retornou vazio");
-  keylessCacheSet({ nome:p.nome, modelo:modelo, ts:Date.now() });
-  state.iaProvedor = p.nome;
-  return t;
+  throw erroFinal || new Error(p.nome + " falhou");
 }
 
 async function aiComplete(prompt, maxTokens, plain){
