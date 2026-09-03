@@ -1231,7 +1231,11 @@ async function tentarProvedor(p, mensagens, maxTokens){
   if(!r.ok){
     // modelo recusado: limpa a memória para redescobrir na próxima
     if(r.status===400 || r.status===404) keylessCacheClear();
-    throw new Error(httpMsg(r.status, p.nome));
+    var detalhe = "";
+    try{ var eb = await r.clone().json(); detalhe = (eb && (eb.error && (eb.error.message||eb.error)) ) || eb.message || ""; }
+    catch(e){ try{ detalhe = (await r.text()).trim(); }catch(e2){} }
+    detalhe = String(detalhe||"").replace(/\s+/g," ").slice(0,140);
+    throw new Error(httpMsg(r.status, p.nome) + (detalhe ? " — "+detalhe : "") + " · modelo tentado: "+modelo);
   }
   var d = await r.json();
   var t = (d && d.choices && d.choices[0] && d.choices[0].message) ? d.choices[0].message.content
@@ -1302,7 +1306,7 @@ async function callKeyless(prompt, maxTokens, plain){
     }
   }
   keylessCacheClear();
-  throw new Error("nenhum provedor aberto respondeu — " + erros.slice(0,2).join(" / "));
+  throw new Error("nenhum dos "+erros.length+" provedores abertos respondeu — " + erros.join(" / "));
 }
 
 /* ============================================================== *
