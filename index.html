@@ -725,7 +725,9 @@ function renderForm(){
   var warn = state.showWarn && missing(state.step).length ? '<p class="warn">Preencha os campos obrigatórios (*) para avançar.</p>' : "";
   var aiErr = state.aiError ? '<p class="warn">'+esc(state.aiError)+'</p>' : "";
   var last = state.step===STP.length-1;
-  var aiPanel = last ? (aiIntegrated() ? "" : renderAiPanel()) : "";
+  // o painel fica disponível mesmo com a IA integrada ativa: uma chave própria (ex: Gemini,
+  // grátis) aqui é uma camada EXTRA que roda em paralelo com ela, não uma substituição.
+  var aiPanel = last ? renderAiPanel() : "";
   var goLabel = last ? (nova ? "Gerar direção de marca com IA integrada" : "Gerar diagnóstico com IA integrada") : "Avançar →";
   var goTitle = "Usa IA integrada de acesso aberto — sem chave, sem cadastro e sem instalar nada, só precisa de internet. Se nenhum provedor responder, o relatório sai no mesmo instante em modo local.";
   var semIABtn = last
@@ -751,11 +753,23 @@ function aiIntegrated(){ return !!(AI_CONFIG.keyless || AI_CONFIG.proxyUrl || (A
 /* se todos os provedores abertos falharem, o relatório sai no modo local */
 function aiPodeTentar(){ return !!AI_CONFIG.keyless; }
 function aiAvailable(){ return aiIntegrated() || aiPodeTentar() || !!(state.ai.provider && state.ai.key.trim()); }
+/* nome de exibição e modelo padrão de cada provedor de CHAVE PRÓPRIA (não confundir
+   com os provedores abertos de KEYLESS_PROVIDERS, que já trazem seu próprio "nome") */
+function nomeProvedorChave(prov){
+  return prov==="openai" ? "OpenAI" : prov==="google" ? "Google Gemini" : "Anthropic";
+}
+function modeloPadraoChave(prov){
+  return prov==="openai" ? "gpt-4o-mini" : prov==="google" ? "gemini-2.0-flash" : "claude-sonnet-4-6";
+}
 function aiLabel(){
-  if(state.iaProvedor) return "IA aberta · " + state.iaProvedor;
+  if(state.iaProvedor){
+    // distingue quem respondeu: um provedor aberto (KEYLESS_PROVIDERS) ou a chave própria
+    var ehAberto = (typeof KEYLESS_PROVIDERS!=="undefined" ? KEYLESS_PROVIDERS : []).some(function(p){ return p.nome===state.iaProvedor; });
+    return (ehAberto ? "IA aberta · " : "IA (chave própria) · ") + state.iaProvedor;
+  }
   if(AI_CONFIG.keyless || AI_CONFIG.proxyUrl) return "IA integrada";
   var p = AI_CONFIG.embeddedProvider || state.ai.provider;
-  return p==="openai" ? "OpenAI" : (p==="anthropic" ? "Anthropic" : "IA integrada");
+  return p ? nomeProvedorChave(p) : "IA integrada";
 }
 
 function renderAiReady(){
@@ -776,28 +790,37 @@ function avisoKeyless(){
 }
 function renderAiPanel(){
   var ai = state.ai, nova = state.mode==="nova", on = !!(ai.provider && ai.key.trim());
-  var label = nova ? "Modo IA · necessário (online)" : "Modo IA · opcional";
-  var st = on ? "ativado" : (nova ? "configure para gerar" : "desligado · modo local");
+  // "necessário" só existe de verdade se a IA integrada estiver desligada (config avançada);
+  // no padrão de fábrica (keyless ligado) isto aqui é sempre uma camada extra opcional.
+  var obrigatorio = nova && !aiIntegrated();
+  var label = obrigatorio ? "Modo IA · necessário (online)" : "Chave própria de IA · opcional";
+  var st = on ? "ativada — soma-se à IA integrada" : (obrigatorio ? "configure para gerar" : "desligada · só IA integrada");
   var head = '<button class="ai-toggle" data-aitoggle="1"><span>'+label+'</span><span class="ai-state">'+st+'</span></button>';
-  if(!state.aiOpen) return '<div class="aibox'+(nova&&!on?' need':'')+'">'+head+'</div>';
+  if(!state.aiOpen) return '<div class="aibox'+(obrigatorio&&!on?' need':'')+'">'+head+'</div>';
   var prov = ai.provider;
-  var note = nova
+  var note = obrigatorio
     ? 'A IA integrada analisa o seu nicho usando apenas a conexão com a internet. Informar uma chave própria é opcional. Sem IA, o botão “Gerar sem IA” monta direção, paletas, tipografias e estilo com o motor local.'
-    : 'A IA integrada já funciona só com internet, sem chave nem cadastro. Preencher uma chave própria aqui é opcional — serve para ganhar estabilidade e sigilo. E o botão “Gerar sem IA” monta o relatório inteiro neste navegador, sem enviar nada para fora.';
+    : 'A IA integrada já funciona sozinha, sem chave nem cadastro — isto aqui é uma camada EXTRA e opcional. Se você colar uma chave gratuita (o Google Gemini dá uma sem cartão de crédito), ela passa a competir junto com a IA integrada: a que responder primeiro é a usada, aumentando a chance de sucesso. Deixe em branco para continuar só com a IA integrada.';
   var body = '<div class="ai-body">'
     + '<p class="ai-note">'+note+'</p>'
     + '<div class="ai-grid">'
-    + '<label>Provedor<select data-ai="provider"><option value="">'+(nova?"Selecione…":"Nenhum (offline)")+'</option>'
+    + '<label>Provedor<select data-ai="provider"><option value="">'+(obrigatorio?"Selecione…":"Nenhuma (só IA integrada)")+'</option>'
+    +   '<option value="google"'+(prov==="google"?" selected":"")+'>Google (Gemini) — chave grátis</option>'
     +   '<option value="anthropic"'+(prov==="anthropic"?" selected":"")+'>Anthropic (Claude)</option>'
     +   '<option value="openai"'+(prov==="openai"?" selected":"")+'>OpenAI</option></select></label>'
-    + '<label>Modelo<input type="text" data-ai="model" value="'+esc(ai.model)+'" placeholder="'+(prov==="openai"?"gpt-4o-mini":"claude-sonnet-4-6")+'"></label>'
+    + '<label>Modelo<input type="text" data-ai="model" value="'+esc(ai.model)+'" placeholder="'+modeloPadraoChave(prov||"google")+'"></label>'
     + '</div>'
     + '<label class="ai-key">Chave de API<input type="password" data-ai="key" value="'+esc(ai.key)+'" placeholder="cole sua chave aqui" autocomplete="off"></label>'
     + '<label class="ai-remember"><input type="checkbox" data-ai="remember"'+(ai.remember?" checked":"")+'> Lembrar a chave neste navegador</label>'
+    + (prov==="google" ? '<p class="ai-warn">Gere sua chave grátis em <b>aistudio.google.com/apikey</b> (só precisa de uma conta Google, sem cartão) e cole acima.</p>' : "")
     + avisoKeyless()
-    + '<p class="ai-warn">A chave fica apenas no seu navegador e é enviada direto ao provedor escolhido. Não use em computadores compartilhados. Se a chamada falhar (chave inválida, rede ou bloqueio do navegador), '+(nova?"o diagnóstico não é gerado — corrija e tente de novo.":"o diagnóstico é gerado normalmente em modo local.")+'</p>'
+    + '<p class="ai-warn">A chave fica apenas no seu navegador e é enviada direto ao provedor escolhido. Não use em computadores compartilhados.'
+      + (obrigatorio
+        ? ' Se a chamada falhar (chave inválida, rede ou bloqueio do navegador), o diagnóstico não é gerado — corrija e tente de novo.'
+        : ' Se você não configurar nada aqui, ou se a chave falhar, a IA integrada (ou o modo local) continua funcionando normalmente.')
+      + '</p>'
     + '</div>';
-  return '<div class="aibox open'+(nova&&!on?' need':'')+'">'+head+body+'</div>';
+  return '<div class="aibox open'+(obrigatorio&&!on?' need':'')+'">'+head+body+'</div>';
 }
 
 function renderLoading(){
@@ -1229,10 +1252,11 @@ async function descobrirModelos(p){
   return candidatos.slice(0,6); // limite para não encadear tentativas demais num provedor só
 }
 
-/* uma tentativa em um provedor: percorre os modelos candidatos até um funcionar.
-   Um modelo recusado (400/404 = não existe/está fora do ar) passa para o próximo
-   candidato do MESMO provedor; qualquer outro erro (limite de uso, autenticação,
-   fora do ar, tempo esgotado) já indica o provedor inteiro, então sobe na hora. */
+/* uma tentativa em um provedor ABERTO (sem chave): percorre os modelos candidatos
+   até um funcionar. Um modelo recusado (400/404 = não existe/está fora do ar) passa
+   para o próximo candidato do MESMO provedor; qualquer outro erro (limite de uso,
+   autenticação, fora do ar, tempo esgotado) já indica o provedor inteiro, então
+   sobe na hora. */
 async function tentarProvedor(p, mensagens, maxTokens){
   var candidatos = await descobrirModelos(p), erroFinal = null;
   for(var i=0;i<candidatos.length;i++){
@@ -1256,89 +1280,138 @@ async function tentarProvedor(p, mensagens, maxTokens){
           : (d && (d.text || d.content)) || "";
     if(!t || !String(t).trim()){ erroFinal = new Error(p.nome + " retornou vazio"); if(!ehUltimo) continue; throw erroFinal; }
     keylessCacheSet({ nome:p.nome, modelo:modelo, ts:Date.now() });
-    state.iaProvedor = p.nome;
     return t;
   }
   throw erroFinal || new Error(p.nome + " falhou");
 }
 
-async function aiComplete(prompt, maxTokens, plain){
-  // Padrão — IA aberta (Pollinations): só internet, SEM chave
-  if(AI_CONFIG.keyless){
-    return await callKeyless(prompt, maxTokens, plain);
-  }
-  // Opção A — backend/proxy (a chave fica no servidor)
-  if(AI_CONFIG.proxyUrl){
-    var rp = await fetch(AI_CONFIG.proxyUrl,{
-      method:"POST", headers:{ "content-type":"application/json" },
-      body: JSON.stringify({ prompt:prompt, max_tokens:maxTokens, plain:!!plain })
-    });
-    if(!rp.ok) throw new Error("proxy HTTP "+rp.status);
-    var dp = await rp.json();
-    return dp.text || dp.content || "";
-  }
-  // Opção B — chave embutida  |  senão, chave digitada pelo usuário
-  var embedded = AI_CONFIG.embeddedKey && AI_CONFIG.embeddedProvider;
-  var prov  = embedded ? AI_CONFIG.embeddedProvider : state.ai.provider;
-  var key   = (embedded ? AI_CONFIG.embeddedKey : state.ai.key || "").trim();
-  var model = (embedded && AI_CONFIG.embeddedModel) ? AI_CONFIG.embeddedModel
-              : (state.ai.model.trim() || (prov==="openai" ? "gpt-4o-mini" : "claude-sonnet-4-6"));
-  if(!prov || !key) throw new Error("IA não configurada");
+/* chamada a um backend/proxy próprio (opcional, ver AI_CONFIG.proxyUrl) */
+async function chamarProxy(prompt, maxTokens, plain){
+  var rp = await fetch(AI_CONFIG.proxyUrl,{
+    method:"POST", headers:{ "content-type":"application/json" },
+    body: JSON.stringify({ prompt:prompt, max_tokens:maxTokens, plain:!!plain })
+  });
+  if(!rp.ok) throw new Error("proxy HTTP "+rp.status);
+  var dp = await rp.json();
+  var t = dp.text || dp.content || "";
+  if(!t) throw new Error("proxy retornou vazio");
+  return t;
+}
+
+/* chamada direta a um provedor com CHAVE PRÓPRIA: Anthropic, OpenAI ou Google
+   (Gemini — tem plano gratuito sem cartão via aistudio.google.com/apikey). As
+   3 recebem as mesmas mensagens (sistema + usuário) já prontas, cada uma no
+   formato que sua API espera. */
+async function chamarComChave(prov, key, model, prompt, mensagens, maxTokens, plain){
+  var sysMsg = (mensagens[0] && mensagens[0].role==="system") ? mensagens[0].content : "";
   if(prov==="anthropic"){
     var r = await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
       headers:{ "content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true" },
-      body: JSON.stringify({ model:model, max_tokens:maxTokens, messages:[{role:"user",content:prompt}] })
+      body: JSON.stringify({ model:model, max_tokens:maxTokens, system:sysMsg, messages:[{role:"user",content:prompt}] })
     });
-    if(!r.ok) throw new Error("HTTP "+r.status);
+    if(!r.ok) throw new Error(httpMsg(r.status, "Anthropic"));
     var d = await r.json();
-    return (d.content||[]).map(function(b){return b.type==="text"?b.text:"";}).join("");
-  } else if(prov==="openai"){
+    var t = (d.content||[]).map(function(b){return b.type==="text"?b.text:"";}).join("");
+    if(!t) throw new Error("Anthropic retornou vazio");
+    return t;
+  }
+  if(prov==="openai"){
     var r2 = await fetch("https://api.openai.com/v1/chat/completions",{
       method:"POST",
       headers:{ "content-type":"application/json","authorization":"Bearer "+key },
       body: JSON.stringify(plain
-        ? { model:model, temperature:0.6, messages:[{role:"system",content:"Você é um consultor de branding e responde em português do Brasil, de forma direta e objetiva."},{role:"user",content:prompt}] }
-        : { model:model, temperature:0.6, messages:[{role:"system",content:"Você responde apenas com JSON válido em português do Brasil."},{role:"user",content:prompt}], response_format:{type:"json_object"} })
+        ? { model:model, temperature:0.6, messages:mensagens }
+        : { model:model, temperature:0.6, messages:mensagens, response_format:{type:"json_object"} })
     });
-    if(!r2.ok) throw new Error("HTTP "+r2.status);
+    if(!r2.ok) throw new Error(httpMsg(r2.status, "OpenAI"));
     var d2 = await r2.json();
-    return d2.choices && d2.choices[0] && d2.choices[0].message ? d2.choices[0].message.content : "";
+    var t2 = d2.choices && d2.choices[0] && d2.choices[0].message ? d2.choices[0].message.content : "";
+    if(!t2) throw new Error("OpenAI retornou vazio");
+    return t2;
   }
-  throw new Error("provedor desconhecido");
+  if(prov==="google"){
+    var r3 = await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(model)+":generateContent?key="+encodeURIComponent(key),{
+      method:"POST", headers:{ "content-type":"application/json" },
+      body: JSON.stringify({
+        systemInstruction: sysMsg ? { parts:[{ text:sysMsg }] } : undefined,
+        contents:[{ role:"user", parts:[{ text:prompt }] }],
+        generationConfig:{ temperature:0.6, maxOutputTokens:maxTokens }
+      })
+    });
+    if(!r3.ok){
+      var detalhe = "";
+      try{ var eb = await r3.clone().json(); detalhe = (eb && eb.error && eb.error.message) || ""; }catch(e){}
+      throw new Error(httpMsg(r3.status, "Google Gemini") + (detalhe ? " — "+detalhe : ""));
+    }
+    var d3 = await r3.json();
+    var cand = d3 && d3.candidates && d3.candidates[0];
+    var t3 = (cand && cand.content && cand.content.parts) ? cand.content.parts.map(function(pp){return pp.text||"";}).join("") : "";
+    if(!t3) throw new Error("Google Gemini retornou vazio"+(cand&&cand.finishReason?" ("+cand.finishReason+")":""));
+    return t3;
+  }
+  throw new Error("provedor de chave desconhecido: "+prov);
 }
 
-/* dispara TODOS os provedores abertos ao mesmo tempo (em vez de um de cada vez,
-   em fila) e fica com o primeiro que responder com sucesso — os demais, se
-   ainda estiverem em andamento, seguem em segundo plano e são simplesmente
-   ignorados quando chegam. Isso evita que um provedor lento ou travado (até
-   AI_CONFIG.timeoutMs) atrase a tentativa nos outros: o pior caso passa de
-   "soma do tempo de todos" para "o tempo do mais lento entre os que respondem
-   primeiro". Só desiste de vez (cai pro modo local) quando TODOS falharem. */
-async function callKeyless(prompt, maxTokens, plain){
-  var sys = plain
-    ? "Você é um consultor sênior de branding e arquitetura de ambientes. Responde em português do Brasil, em texto corrido, direto e objetivo, sem markdown."
-    : "Você responde APENAS com JSON válido em português do Brasil, sem markdown e sem texto extra.";
-  var mensagens = [ {role:"system",content:sys}, {role:"user",content:prompt} ];
-  var provs = provedoresOrdenados();
-  if(!provs.length) throw new Error("nenhum provedor de IA configurado");
-
-  return await new Promise(function(resolve, reject){
-    var erros = [], pendentes = provs.length;
-    provs.forEach(function(p){
-      tentarProvedor(p, mensagens, maxTokens).then(
-        resolve,
+/* corre várias fontes de IA em paralelo (array de {nome, promessa}) e fica com a
+   primeira que responder com SUCESSO — as demais, se ainda estiverem em andamento,
+   seguem em segundo plano e são ignoradas quando chegam. Só rejeita quando TODAS
+   falharem, juntando o motivo de cada uma. */
+function primeiraQueResponder(tentativas){
+  return new Promise(function(resolve, reject){
+    var erros = [], pendentes = tentativas.length, resolvido = false;
+    tentativas.forEach(function(t){
+      t.promessa.then(
+        function(texto){
+          if(resolvido) return;
+          resolvido = true;
+          state.iaProvedor = t.nome;
+          resolve(texto);
+        },
         function(e){
-          erros.push((p.nome||"provedor") + ": " + (e && e.name==="AbortError" ? "tempo esgotado" : (e.message||"falhou")));
+          erros.push(t.nome + ": " + (e && e.name==="AbortError" ? "tempo esgotado" : (e.message||"falhou")));
           pendentes--;
-          if(pendentes===0){
+          if(pendentes===0 && !resolvido){
             keylessCacheClear();
-            reject(new Error("nenhum dos "+erros.length+" provedores abertos respondeu — " + erros.join(" / ")));
+            reject(new Error("nenhuma das "+erros.length+" fontes de IA respondeu — " + erros.join(" / ")));
           }
         }
       );
     });
   });
+}
+
+/* monta TODAS as fontes de IA disponíveis — provedores abertos sem chave, um
+   proxy próprio (se configurado) e uma chave própria opcional (embutida no
+   arquivo ou digitada pelo usuário no painel "Chave própria de IA", inclusive
+   Google Gemini) — e as dispara ao mesmo tempo. A chave própria não SUBSTITUI
+   a IA integrada: ela SOMA, como mais uma concorrente na mesma corrida. Só cai
+   para o modo local se absolutamente nenhuma fonte responder. */
+async function aiComplete(prompt, maxTokens, plain){
+  var sys = plain
+    ? "Você é um consultor sênior de branding e arquitetura de ambientes. Responde em português do Brasil, em texto corrido, direto e objetivo, sem markdown."
+    : "Você responde APENAS com JSON válido em português do Brasil, sem markdown e sem texto extra.";
+  var mensagens = [ {role:"system",content:sys}, {role:"user",content:prompt} ];
+  var tentativas = [];
+
+  if(AI_CONFIG.keyless){
+    provedoresOrdenados().forEach(function(p){
+      tentativas.push({ nome:p.nome, promessa: tentarProvedor(p, mensagens, maxTokens) });
+    });
+  }
+  if(AI_CONFIG.proxyUrl){
+    tentativas.push({ nome:"proxy próprio", promessa: chamarProxy(prompt, maxTokens, plain) });
+  }
+  var embedded = AI_CONFIG.embeddedKey && AI_CONFIG.embeddedProvider;
+  var prov  = embedded ? AI_CONFIG.embeddedProvider : state.ai.provider;
+  var key   = (embedded ? AI_CONFIG.embeddedKey : state.ai.key || "").trim();
+  if(prov && key){
+    var model = (embedded && AI_CONFIG.embeddedModel) ? AI_CONFIG.embeddedModel : (state.ai.model.trim() || modeloPadraoChave(prov));
+    tentativas.push({ nome: nomeProvedorChave(prov), promessa: chamarComChave(prov, key, model, prompt, mensagens, maxTokens, plain) });
+  }
+
+  if(!tentativas.length) throw new Error("IA não configurada");
+  return await primeiraQueResponder(tentativas);
 }
 
 /* ============================================================== *
