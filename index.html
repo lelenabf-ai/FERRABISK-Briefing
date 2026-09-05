@@ -27,28 +27,34 @@
     cafe:      "#332420"  // marrom café
   };
 
-  /* ┌─ INTEGRAÇÃO DE IA — SEM CHAVE, SÓ COM INTERNET ─┐
-     A ferramenta usa provedores de IA de acesso ABERTO: nenhum cadastro,
-     nenhuma chave, nenhum backend. Basta o computador estar online.
+  /* ┌─ CONSULTA ÀS IAs GRATUITAS — invisível para quem usa a ferramenta ─┐
+     Não existe escolha de "com IA" ou "sem IA" na interface: a ferramenta SEMPRE
+     tenta consultar as IAs gratuitas abaixo com base nas respostas do questionário,
+     em segundo plano, assim que o diagnóstico é gerado — e o que essas consultas
+     devolverem entra automaticamente no arquivo final (resumo, análise, insights,
+     síntese estratégica, pesquisa de referências). Se nenhuma responder a tempo, o
+     motor local (determinístico, mais abaixo no arquivo) já garante um diagnóstico
+     completo sozinho — o usuário nunca vê essa mecânica nem uma mensagem de erro.
 
-     Como funciona: a lista KEYLESS_PROVIDERS abaixo é tentada em ordem. Para
-     cada provedor a ferramenta descobre sozinha quais modelos ele está
-     servindo hoje (endpoint /models) e usa o primeiro compatível — assim, se
-     um provedor trocar de catálogo, nada quebra. O primeiro que responder é
-     memorizado e passa a ser tentado primeiro nas próximas vezes.
-
-     Se TODOS estiverem fora do ar, o relatório é gerado no motor local, sem IA.
-     Nunca fica sem resultado.
+     Como funciona: todos os provedores de KEYLESS_PROVIDERS são chamados AO MESMO
+     TEMPO (não em fila) e o primeiro que responder com sucesso é o usado; os demais
+     são descartados quando chegam depois. Para cada provedor, a ferramenta descobre
+     sozinha quais modelos ele está servindo hoje (endpoint /models) e usa o primeiro
+     compatível — se um modelo específico estiver indisponível, tenta o próximo do
+     mesmo provedor antes de desistir dele. O que funcionar fica memorizado para ser
+     tentado primeiro na próxima vez.
 
      Observações honestas sobre serviços abertos:
-     • São mantidos por terceiros e podem sair do ar sem aviso — por isso a
-       lista tem mais de um, e existe o modo local.
+     • São mantidos por terceiros e podem sair do ar sem aviso — por isso a lista
+       tem mais de um provedor, e o motor local nunca deixa de gerar o arquivo.
      • Têm limite por IP (o LLM7 permite ~10 chamadas/min, 60/hora).
      • Não têm contrato de privacidade: não coloque dados sensíveis de clientes
-       no briefing se isso for uma preocupação. O modo "Gerar sem IA" não envia
-       absolutamente nada para fora.
-     • Se quiser mais estabilidade, qualidade ou sigilo, ainda dá para usar uma
-       chave própria (campos opcionais mais abaixo) ou um proxy seu. */
+       no briefing se isso for uma preocupação — as respostas do questionário são
+       enviadas a esses serviços apenas no momento de gerar o diagnóstico.
+     • Para mais estabilidade ou uma chave própria (ex.: Google Gemini, gratuito),
+       edite AI_CONFIG.embeddedProvider/embeddedKey/embeddedModel abaixo — é um
+       ajuste de código, não algo exposto na interface; ela entra na mesma corrida
+       em paralelo com os provedores abertos, somando chances em vez de substituir. */
   var KEYLESS_PROVIDERS = [
     { nome:"LLM7",
       base:"https://api.llm7.io/v1",
@@ -71,9 +77,9 @@
     keyless: true,          // ★ usa os provedores abertos acima. Só precisa de internet.
     timeoutMs: 18000,       // tempo máximo de espera por CADA chamada (os provedores rodam em paralelo, não em fila)
     proxyUrl: "",           // opcional: backend próprio, se um dia quiser mais controle
-    embeddedProvider: "",   // opcional: "anthropic" ou "openai"
-    embeddedKey: "",        // opcional: chave própria (fica visível no arquivo)
-    embeddedModel: "",      // opcional: ex. "claude-sonnet-4-6" ou "gpt-4o-mini"
+    embeddedProvider: "",   // opcional, sem UI: "anthropic", "openai" ou "google"
+    embeddedKey: "",        // opcional, sem UI: chave própria (fica visível no arquivo)
+    embeddedModel: "",      // opcional: ex. "claude-sonnet-4-6", "gpt-4o-mini" ou "gemini-2.0-flash"
     autoEnrich: true,       // marca consolidada: enriquecer o texto com IA automaticamente
     autoSintese: true       // relatório final: gerar a síntese integrada automaticamente
   };
@@ -187,30 +193,6 @@ body{
 .btn:disabled{opacity:.4;cursor:not-allowed;}
 .warn{color:var(--clay);font-size:12.5px;font-family:'IBM Plex Mono',monospace;margin-top:12px;}
 .priv{font-size:12px;color:var(--ink-3);font-family:'IBM Plex Mono',monospace;text-align:center;margin-top:26px;}
-.aibox{margin-top:22px;border:1px dashed var(--line-2);border-radius:10px;overflow:hidden;}
-.ai-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;
-  background:var(--btn-bg);border:0;color:var(--ink);cursor:pointer;padding:12px 16px;
-  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;}
-.ai-toggle:hover{background:var(--btn-bg-h);}
-.ai-state{color:var(--ink-2);font-size:10.5px;letter-spacing:.04em;}
-.ai-body{padding:2px 16px 18px;}
-.ai-note{font-size:13px;color:var(--ink-2);margin:10px 0 14px;line-height:1.5;}
-.ai-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.aibox label{display:block;font-size:12.5px;font-weight:600;color:var(--ink);}
-.aibox select,.aibox input[type=text],.aibox input[type=password]{
-  width:100%;margin-top:5px;background:var(--input-bg);color:var(--input-text);
-  border:1px solid var(--input-line);border-radius:8px;padding:10px 11px;font-family:inherit;font-size:13.5px;}
-.aibox select:focus,.aibox input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
-.ai-key{display:block;margin-top:12px;}
-.ai-remember{display:flex;align-items:center;gap:8px;margin-top:12px;font-weight:500;color:var(--ink-2);}
-.ai-remember input{width:auto;margin:0;}
-.ai-warn{font-size:11.5px;color:var(--ink-2);font-family:'IBM Plex Mono',monospace;line-height:1.55;margin:14px 0 0;}
-@media(max-width:560px){ .ai-grid{grid-template-columns:1fr;} }
-.srcbadge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;
-  text-transform:uppercase;padding:6px 12px;border-radius:999px;background:var(--btn-bg);color:var(--ink-2);
-  border:1px solid var(--line);margin-bottom:18px;}
-.srcbadge.ia{background:var(--accent-soft);color:var(--ink);border-color:var(--accent-line);}
-.srcnotice{font-size:12.5px;color:var(--clay);font-family:'IBM Plex Mono',monospace;margin:-8px 0 18px;}
 .home{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px;}
 .choice{text-align:left;cursor:pointer;font-family:inherit;background:var(--card);border:1px solid var(--line);border-radius:14px;
   padding:26px 24px 22px;color:var(--ink);transition:transform .12s,border-color .15s,box-shadow .15s;
@@ -222,11 +204,6 @@ body{
 .choice-go{font-family:'Archivo',sans-serif;font-weight:600;font-size:14px;color:var(--accent-light);margin-top:6px;}
 .choice.alt{border-left:3px solid var(--accent);}
 @media(max-width:560px){ .home{grid-template-columns:1fr;} }
-.aibox.need{border-style:solid;border-color:var(--accent-line);}
-.airead{margin-top:22px;display:flex;align-items:center;gap:10px;background:var(--accent-soft);
-  border:1px solid var(--accent-line);border-radius:10px;padding:12px 16px;color:var(--ink);
-  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.03em;line-height:1.5;}
-.airead-dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--accent-light);box-shadow:0 0 0 3px var(--accent-soft);}
 .adminlink{color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
 .adminlink:hover{color:var(--ink);}
 .adm-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
@@ -311,9 +288,6 @@ body{
 
 /* ===== CAMADA DE IA — síntese integrada + consultor ===== */
 .aiwrap{border:1px solid var(--accent-line);background:rgba(181,86,47,.10);border-radius:12px;padding:20px 20px 18px;margin-top:14px;}
-.aiwrap .ai-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
-.aiwrap .ai-dot{width:8px;height:8px;border-radius:50%;background:var(--accent-light);flex:none;box-shadow:0 0 0 4px var(--accent-soft);}
-.aiwrap .ai-tag{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent-light);}
 .ai-frase{font-family:'Archivo',sans-serif;font-weight:700;font-size:19px;line-height:1.3;letter-spacing:-.01em;color:var(--ink);margin:2px 0 12px;}
 .ai-diag{font-size:14.5px;color:var(--ink);margin:0 0 4px;}
 .ai-sub{margin-top:16px;}
@@ -414,8 +388,6 @@ body{
   .pill.media{background:#4c5a3e !important;color:#fff !important;}
   .pill.baixa{background:#eceae3 !important;color:#555 !important;}
   .brandmark{background:transparent !important;border:0 !important;box-shadow:none !important;}
-  .srcbadge{background:#eee !important;color:#555 !important;border-color:#ccc !important;}
-  .srcbadge.ia{background:#f1e6df !important;color:#7a3d22 !important;border-color:#e0c3b3 !important;}
   .fontcard{background:#fff !important;border:1px solid #cfcabf !important;}
   .font-sample,.font-abc,.style-desc,.font-just{color:#333 !important;}
   .font-use,.choice-go{color:#8a3d1c !important;}
@@ -424,7 +396,7 @@ body{
   .block,.pal{break-inside:avoid;}
   .aiwrap{background:#faf6f2 !important;border:1px solid #e0c3b3 !important;}
   .ai-frase,.ai-diag,.ai-conex b,.ai-fase .fo{color:#211f1b !important;}
-  .ai-tag,.ai-sub h5,.ai-fase .fs{color:#8a3d1c !important;}
+  .ai-sub h5,.ai-fase .fs{color:#8a3d1c !important;}
   .ai-conex span,.ai-list li,.ai-fase li{color:#4a4a4a !important;}
   .ai-fase{background:#fff !important;border:1px solid #cfcabf !important;}
   .ai-first{background:#b5562f !important;color:#fff !important;}
@@ -534,24 +506,22 @@ var STEPS_NOVA = [
 ];
 
 /* ============================================================== *  ESTADO  * ============================================================== */
-var state = { phase:"home", mode:null, step:0, answers:{}, novaAnswers:{}, result:null, showWarn:false, copied:"", aiOpen:false, aiError:"", ai:{provider:"",key:"",model:"",remember:false},
+var state = { phase:"home", mode:null, step:0, answers:{}, novaAnswers:{}, result:null, showWarn:false, copied:"",
   adminAuthed:false, adminToken:"", adminRecords:[], adminError:"", adminLoading:false, fromAdmin:false, viewAnswers:null,
-  /* --- camada de IA integrada ao relatorio final --- */
-  recId:"", sinteseLoading:false, sinteseError:"", semIA:false, iaProvedor:"",
+  /* --- camada de IA (consulta às IAs gratuitas, sempre em segundo plano, sem escolha do usuário) --- */
+  recId:"", sinteseLoading:false, sinteseError:"",
   pesquisaLoading:false, pesquisaError:"",
   chat:[], chatDraft:"", chatBusy:false };
 function resetAILayer(){
-  state.recId=""; state.sinteseLoading=false; state.sinteseError=""; state.semIA=false;
+  state.recId=""; state.sinteseLoading=false; state.sinteseError="";
   state.pesquisaLoading=false; state.pesquisaError="";
   state.chat=[]; state.chatDraft=""; state.chatBusy=false;
 }
 try{ var saved = localStorage.getItem("diag_marca"); if(saved) state.answers = JSON.parse(saved); }catch(e){}
 try{ var savedN = localStorage.getItem("diag_nova"); if(savedN) state.novaAnswers = JSON.parse(savedN); }catch(e){}
-try{ var sk = localStorage.getItem("diag_ai"); if(sk){ var o=JSON.parse(sk); state.ai.provider=o.provider||""; state.ai.model=o.model||""; if(o.remember){ state.ai.key=o.key||""; state.ai.remember=true; } } }catch(e){}
 function currentSteps(){ return state.mode==="nova" ? STEPS_NOVA : STEPS; }
 function currentAnswers(){ if(state.fromAdmin && state.viewAnswers) return state.viewAnswers; return state.mode==="nova" ? state.novaAnswers : state.answers; }
 function persist(){ try{ if(state.mode==="nova") localStorage.setItem("diag_nova", JSON.stringify(state.novaAnswers)); else localStorage.setItem("diag_marca", JSON.stringify(state.answers)); }catch(e){} }
-function persistAI(){ try{ localStorage.setItem("diag_ai", JSON.stringify({provider:state.ai.provider,model:state.ai.model,remember:state.ai.remember,key:state.ai.remember?state.ai.key:""})); }catch(e){} }
 
 /* ---- diagnósticos: fila local de envio (outbox) + coleta central ---- */
 function outboxAll(){ try{ return JSON.parse(localStorage.getItem("diag_outbox")||"[]"); }catch(e){ return []; } }
@@ -723,115 +693,31 @@ function renderForm(){
   }).join("");
 
   var warn = state.showWarn && missing(state.step).length ? '<p class="warn">Preencha os campos obrigatórios (*) para avançar.</p>' : "";
-  var aiErr = state.aiError ? '<p class="warn">'+esc(state.aiError)+'</p>' : "";
   var last = state.step===STP.length-1;
-  // o painel fica disponível mesmo com a IA integrada ativa: uma chave própria (ex: Gemini,
-  // grátis) aqui é uma camada EXTRA que roda em paralelo com ela, não uma substituição.
-  var aiPanel = last ? renderAiPanel() : "";
-  var goLabel = last ? (nova ? "Gerar direção de marca com IA integrada" : "Gerar diagnóstico com IA integrada") : "Avançar →";
-  var goTitle = "Usa IA integrada de acesso aberto — sem chave, sem cadastro e sem instalar nada, só precisa de internet. Se nenhum provedor responder, o relatório sai no mesmo instante em modo local.";
-  var semIABtn = last
-    ? '<button class="btn" data-semia="1" title="Gera o relatório completo usando apenas o motor local deste navegador, sem IA e sem enviar nada para fora">Gerar sem IA</button>'
-    : '';
+  var goLabel = last ? (nova ? "Gerar direção de marca" : "Gerar diagnóstico") : "Avançar →";
   var nav = '<div class="nav no-print">'
     + (state.step>0 ? '<button class="btn" data-go="'+(state.step-1)+'">← Voltar</button>' : '<button class="btn" data-home="1">← Início</button>')
-    + '<div class="nav-right">' + semIABtn
-    + '<button class="btn primary" data-next="1"'+(last?' title="'+esc(goTitle)+'"':'')+'>'+goLabel+'</button></div></div>';
+    + '<div class="nav-right"><button class="btn primary" data-next="1">'+goLabel+'</button></div></div>';
 
   var privTxt = last
-    ? 'Em “…com IA integrada”, as respostas são enviadas a um provedor aberto (sem chave, sem cadastro) apenas no momento de gerar. Em “Gerar sem IA”, tudo é calculado neste navegador e nada sai daqui.'
+    ? 'Suas respostas são usadas apenas para montar este diagnóstico — parte da análise pode ser processada por serviços de IA gratuitos para enriquecer o resultado.'
     : 'As respostas ficam apenas neste navegador.';
 
   return prog + '<section class="card"><div class="sechead"><div class="eyebrow">'+(nova?"Marca nova":"Marca consolidada")+' · Etapa '+(state.step+1)+' de '+STP.length+'</div><h2>'+esc(s.title)+'</h2></div>'
-    + fields + warn + aiErr + aiPanel + nav + '</section>'
+    + fields + warn + nav + '</section>'
     + '<p class="priv">'+privTxt+'</p>';
 }
 
-/* a IA aberta funciona só com internet; o painel "Modo IA" segue disponível
-   para quem quiser usar a própria chave e ganhar estabilidade/sigilo. */
-function aiIntegrated(){ return !!(AI_CONFIG.keyless || AI_CONFIG.proxyUrl || (AI_CONFIG.embeddedKey && AI_CONFIG.embeddedProvider)); }
-/* se todos os provedores abertos falharem, o relatório sai no modo local */
-function aiPodeTentar(){ return !!AI_CONFIG.keyless; }
-function aiAvailable(){ return aiIntegrated() || aiPodeTentar() || !!(state.ai.provider && state.ai.key.trim()); }
-/* nome de exibição e modelo padrão de cada provedor de CHAVE PRÓPRIA (não confundir
-   com os provedores abertos de KEYLESS_PROVIDERS, que já trazem seu próprio "nome") */
-function nomeProvedorChave(prov){
-  return prov==="openai" ? "OpenAI" : prov==="google" ? "Google Gemini" : "Anthropic";
-}
+/* modelo padrão de cada provedor de chave própria embutida no código (AI_CONFIG.embedded*
+   — não há UI para isso; é só uma opção para quem edita o arquivo diretamente) */
 function modeloPadraoChave(prov){
   return prov==="openai" ? "gpt-4o-mini" : prov==="google" ? "gemini-2.0-flash" : "claude-sonnet-4-6";
 }
-function aiLabel(){
-  if(state.iaProvedor){
-    // distingue quem respondeu: um provedor aberto (KEYLESS_PROVIDERS) ou a chave própria
-    var ehAberto = (typeof KEYLESS_PROVIDERS!=="undefined" ? KEYLESS_PROVIDERS : []).some(function(p){ return p.nome===state.iaProvedor; });
-    return (ehAberto ? "IA aberta · " : "IA (chave própria) · ") + state.iaProvedor;
-  }
-  if(AI_CONFIG.keyless || AI_CONFIG.proxyUrl) return "IA integrada";
-  var p = AI_CONFIG.embeddedProvider || state.ai.provider;
-  return p ? nomeProvedorChave(p) : "IA integrada";
-}
-
-function renderAiReady(){
-  var nova = state.mode==="nova";
-  var base = AI_CONFIG.keyless
-    ? "IA integrada ativa — só precisa de internet. Nenhuma chave, nenhum cadastro."
-    : "IA integrada ativa — nenhuma chave é necessária.";
-  var txt = nova ? base + " É só gerar." : base + " A análise será enriquecida automaticamente.";
-  return '<div class="airead"><span class="airead-dot"></span>'+txt+'</div>';
-}
-
-function avisoKeyless(){
-  if(!AI_CONFIG.keyless) return "";
-  return '<p class="ai-warn">A IA integrada usa provedores de acesso aberto: nenhuma chave e nenhum cadastro, apenas internet. '
-       + 'Como são serviços mantidos por terceiros, podem ficar lentos ou sair do ar — quando isso acontece a ferramenta tenta o próximo '
-       + 'da lista e, se nenhum responder, gera o relatório no motor local. Informar sua própria chave abaixo é opcional e serve para '
-       + 'ganhar estabilidade, qualidade e sigilo.</p>';
-}
-function renderAiPanel(){
-  var ai = state.ai, nova = state.mode==="nova", on = !!(ai.provider && ai.key.trim());
-  // "necessário" só existe de verdade se a IA integrada estiver desligada (config avançada);
-  // no padrão de fábrica (keyless ligado) isto aqui é sempre uma camada extra opcional.
-  var obrigatorio = nova && !aiIntegrated();
-  var label = obrigatorio ? "Modo IA · necessário (online)" : "Chave própria de IA · opcional";
-  var st = on ? "ativada — soma-se à IA integrada" : (obrigatorio ? "configure para gerar" : "desligada · só IA integrada");
-  var head = '<button class="ai-toggle" data-aitoggle="1"><span>'+label+'</span><span class="ai-state">'+st+'</span></button>';
-  if(!state.aiOpen) return '<div class="aibox'+(obrigatorio&&!on?' need':'')+'">'+head+'</div>';
-  var prov = ai.provider;
-  var note = obrigatorio
-    ? 'A IA integrada analisa o seu nicho usando apenas a conexão com a internet. Informar uma chave própria é opcional. Sem IA, o botão “Gerar sem IA” monta direção, paletas, tipografias e estilo com o motor local.'
-    : 'A IA integrada já funciona sozinha, sem chave nem cadastro — isto aqui é uma camada EXTRA e opcional. Se você colar uma chave gratuita (o Google Gemini dá uma sem cartão de crédito), ela passa a competir junto com a IA integrada: a que responder primeiro é a usada, aumentando a chance de sucesso. Deixe em branco para continuar só com a IA integrada.';
-  var body = '<div class="ai-body">'
-    + '<p class="ai-note">'+note+'</p>'
-    + '<div class="ai-grid">'
-    + '<label>Provedor<select data-ai="provider"><option value="">'+(obrigatorio?"Selecione…":"Nenhuma (só IA integrada)")+'</option>'
-    +   '<option value="google"'+(prov==="google"?" selected":"")+'>Google (Gemini) — chave grátis</option>'
-    +   '<option value="anthropic"'+(prov==="anthropic"?" selected":"")+'>Anthropic (Claude)</option>'
-    +   '<option value="openai"'+(prov==="openai"?" selected":"")+'>OpenAI</option></select></label>'
-    + '<label>Modelo<input type="text" data-ai="model" value="'+esc(ai.model)+'" placeholder="'+modeloPadraoChave(prov||"google")+'"></label>'
-    + '</div>'
-    + '<label class="ai-key">Chave de API<input type="password" data-ai="key" value="'+esc(ai.key)+'" placeholder="cole sua chave aqui" autocomplete="off"></label>'
-    + '<label class="ai-remember"><input type="checkbox" data-ai="remember"'+(ai.remember?" checked":"")+'> Lembrar a chave neste navegador</label>'
-    + (prov==="google" ? '<p class="ai-warn">Gere sua chave grátis em <b>aistudio.google.com/apikey</b> (só precisa de uma conta Google, sem cartão) e cole acima.</p>' : "")
-    + avisoKeyless()
-    + '<p class="ai-warn">A chave fica apenas no seu navegador e é enviada direto ao provedor escolhido. Não use em computadores compartilhados.'
-      + (obrigatorio
-        ? ' Se a chamada falhar (chave inválida, rede ou bloqueio do navegador), o diagnóstico não é gerado — corrija e tente de novo.'
-        : ' Se você não configurar nada aqui, ou se a chave falhar, a IA integrada (ou o modo local) continua funcionando normalmente.')
-      + '</p>'
-    + '</div>';
-  return '<div class="aibox open'+(obrigatorio&&!on?' need':'')+'">'+head+body+'</div>';
-}
 
 function renderLoading(){
-  var msg;
-  if(state.semIA){
-    msg = 'Montando o relatório localmente, sem IA,<br>a partir das respostas de '+esc(brandName())+'…';
-  } else {
-    msg = state.mode==="nova"
-      ? 'Analisando o nicho e sugerindo direção,<br>cores, tipografias e estilo para '+esc(brandName())+'…'
-      : 'Cruzando identidade, ambiente e comunicação visual<br>e calculando as paletas para '+esc(brandName())+'…';
-  }
+  var msg = state.mode==="nova"
+    ? 'Analisando o nicho e sugerindo direção,<br>cores, tipografias e estilo para '+esc(brandName())+'…'
+    : 'Cruzando identidade, ambiente e comunicação visual<br>e calculando as paletas para '+esc(brandName())+'…';
   return '<section class="card load"><div class="eyebrow">Compondo</div><div class="spin"></div><p>'+msg+'</p></section>';
 }
 
@@ -870,12 +756,6 @@ function renderResultNova(){
     ? '<button class="btn" data-adminback="1">← Painel do admin</button>'
     : '<button class="btn" data-edit="1">Editar respostas</button><button class="btn" data-home="1">Novo diagnóstico</button>';
   var html = '<div class="actions no-print">'+acts+'</div>';
-  html += (r.source==="ia")
-    ? '<div class="srcbadge ia">Criado por IA · '+aiLabel()+'</div>'
-    : '<div class="srcbadge">Direção montada localmente · sem IA</div>';
-  if(r.notice) html += '<div class="srcnotice">'+esc(r.notice)
-    + (r.source!=="ia" && !state.fromAdmin ? ' <button class="ai-mini no-print" data-retryia="1" style="margin-left:8px">Tentar com IA</button>' : '')
-    + '</div>';
 
   html += '<div class="block"><h3><span class="idx">01</span> Direção de marca</h3>';
   if(r.conceito) html += '<div class="resumo"><b>'+esc(r.conceito)+'</b></div>';
@@ -928,12 +808,6 @@ function renderResult(){
     ? '<button class="btn" data-adminback="1">← Painel do admin</button>'
     : '<button class="btn" data-edit="1">Editar respostas</button><button class="btn" data-home="1">Novo diagnóstico</button>';
   var html = '<div class="actions no-print">'+acts+'</div>';
-  html += (r.source==="ia")
-    ? '<div class="srcbadge ia">Análise enriquecida por IA · '+aiLabel()+'</div>'
-    : '<div class="srcbadge">Análise gerada localmente · offline</div>';
-  if(r.notice) html += '<div class="srcnotice">'+esc(r.notice)
-    + (r.source!=="ia" && !state.fromAdmin ? ' <button class="ai-mini no-print" data-retryia="1" style="margin-left:8px">Tentar com IA</button>' : '')
-    + '</div>';
   html += '<div class="block"><h3><span class="idx">01</span> Resumo</h3><div class="resumo">'+esc(r.resumo)+'</div></div>';
   html += '<div class="block"><h3><span class="idx">02</span> Análise aprofundada</h3>'
     + r.analise.map(function(b){return '<div class="sub"><h4>'+esc(b.titulo)+'</h4><p>'+esc(b.texto)+'</p></div>';}).join("") + '</div>';
@@ -964,8 +838,7 @@ function bind(){
   app.querySelectorAll("[data-choose]").forEach(function(el){
     el.addEventListener("click", function(){
       state.mode = el.getAttribute("data-choose");
-      state.step = 0; state.showWarn=false; state.aiError=""; state.result=null; state.phase="form"; resetAILayer();
-      if(state.mode==="nova" && !(state.ai.provider && state.ai.key.trim())) state.aiOpen=true;
+      state.step = 0; state.showWarn=false; state.result=null; state.phase="form"; resetAILayer();
       scrollTop(); render();
     });
   });
@@ -978,15 +851,10 @@ function bind(){
     el.addEventListener("click", function(){ state.step = +el.getAttribute("data-go"); state.showWarn=false; scrollTop(); render(); });
   });
   var nextBtn = app.querySelector("[data-next]"); if(nextBtn) nextBtn.addEventListener("click", next);
-  bindIf("[data-semia]", function(){
-    if(missing(state.step).length){ state.showWarn=true; render(); return; }
-    state.aiError=""; generate(true);
-  });
-  bindIf("[data-retryia]", function(){ state.phase="form"; state.step=currentSteps().length-1; state.aiError=""; render(); });
   bindIf("[data-print]", function(){ window.print(); });
   bindIf("[data-edit]", function(){ state.phase="form"; state.step=Math.max(0,currentSteps().length-1); render(); });
-  bindIf("[data-home]", function(){ state.phase="home"; state.mode=null; state.result=null; state.step=0; state.showWarn=false; state.aiError=""; state.fromAdmin=false; state.viewAnswers=null; resetAILayer(); scrollTop(); render(); });
-  app.querySelectorAll("[data-gohome]").forEach(function(el){ el.addEventListener("click", function(){ state.phase="home"; state.mode=null; state.result=null; state.step=0; state.showWarn=false; state.aiError=""; state.fromAdmin=false; state.viewAnswers=null; resetAILayer(); scrollTop(); render(); }); });
+  bindIf("[data-home]", function(){ state.phase="home"; state.mode=null; state.result=null; state.step=0; state.showWarn=false; state.fromAdmin=false; state.viewAnswers=null; resetAILayer(); scrollTop(); render(); });
+  app.querySelectorAll("[data-gohome]").forEach(function(el){ el.addEventListener("click", function(){ state.phase="home"; state.mode=null; state.result=null; state.step=0; state.showWarn=false; state.fromAdmin=false; state.viewAnswers=null; resetAILayer(); scrollTop(); render(); }); });
   // ---- administrador ----
   var admLink = app.querySelector("[data-admin]"); if(admLink) admLink.addEventListener("click", function(){ state.phase="admin"; state.adminError=""; scrollTop(); render(); });
   var pw = app.querySelector("[data-adminpass]");
@@ -1013,16 +881,6 @@ function bind(){
       if(ADMIN_CONFIG.collectorUrl){ try{ fetch(ADMIN_CONFIG.collectorUrl,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"delete",token:state.adminToken,id:id})}).catch(function(){}); }catch(e){} }
       state.adminRecords = (state.adminRecords||[]).filter(function(r){return r.id!==id;});
       render();
-    });
-  });
-  var at = app.querySelector("[data-aitoggle]"); if(at) at.addEventListener("click", function(){ state.aiOpen=!state.aiOpen; render(); });
-  app.querySelectorAll("[data-ai]").forEach(function(el){
-    var k = el.getAttribute("data-ai");
-    var ev = (el.type==="checkbox"||el.tagName==="SELECT") ? "change" : "input";
-    el.addEventListener(ev, function(){
-      state.ai[k] = (el.type==="checkbox") ? el.checked : el.value;
-      persistAI();
-      if(el.tagName==="SELECT") render();
     });
   });
   // ---- camada de IA: síntese integrada ----
@@ -1079,39 +937,31 @@ function next(){
   if(missing(state.step).length){ state.showWarn=true; render(); return; }
   if(state.step < STP.length-1){ state.step++; state.showWarn=false; scrollTop(); render(); }
   else {
-    state.aiError=""; generate();
+    generate();
   }
 }
-function generate(semIA){
-  state.semIA = !!semIA;
+function generate(){
   state.phase="loading"; scrollTop(); render();
   if(state.mode==="nova") runGenerateNova(); else runGenerate();
 }
-/* a IA só é usada se estiver disponível E o usuário não tiver pedido modo local */
-function usarIA(){ return !state.semIA && aiAvailable(); }
 
 async function runGenerateNova(){
-  var res = null, aviso = "";
-  if(usarIA()){
-    try{
-      var ai = await callAI(state.novaAnswers, buildAIPromptNova(state.novaAnswers));
-      if(!ai || !(ai.direcao || ai.conceito)) throw new Error("resposta vazia");
-      ai.source = "ia"; ai.notice = "";
-      res = ai;
-    }catch(e){
-      aviso = "Não foi possível usar a IA (" + (e.message||"erro") + "). A direção de marca abaixo foi montada em modo local, a partir das suas respostas.";
-    }
-  }
-  if(!res){
-    res = buildReportNova(state.novaAnswers);
-    res.source = "local";
-    res.notice = aviso || (state.semIA ? "" : "IA não configurada — direção de marca montada em modo local, a partir das suas respostas.");
-  }
+  // sempre tenta a consulta às IAs gratuitas primeiro, com base nas respostas do
+  // questionário; se nenhuma responder a tempo, cai para o motor local — sem
+  // expor esse mecanismo ao usuário, o resultado final é sempre completo.
+  var res = null;
+  try{
+    var ai = await callAI(state.novaAnswers, buildAIPromptNova(state.novaAnswers));
+    if(ai && (ai.direcao || ai.conceito)){ ai.source = "ia"; res = ai; }
+  }catch(e){ /* segue para o motor local */ }
+  if(!res){ res = buildReportNova(state.novaAnswers); res.source = "local"; }
   resetAILayer();
   var recN = saveSubmission("nova", state.novaAnswers, res);
   state.recId = recN ? recN.id : "";
   state.result = res; state.phase="result"; scrollTop(); render();
-  if(res.source==="ia" && aiAvailable() && AI_CONFIG.autoSintese !== false) runSintese(true);
+  // síntese e pesquisa são consultas independentes: rodam mesmo que a direção
+  // principal tenha saído do motor local, para maximizar o que a IA consegue somar.
+  if(AI_CONFIG.autoSintese !== false) runSintese(true);
 }
 
 function buildAIPromptNova(a){
@@ -1130,9 +980,11 @@ function buildAIPromptNova(a){
 
 async function runGenerate(){
   var local = buildReport(state.answers);
-  var res = { resumo:local.resumo, analise:local.analise, insights:local.insights, paletas:local.paletas, source:"local", notice:"" };
-  var useAI = usarIA() && (aiIntegrated() ? AI_CONFIG.autoEnrich !== false : true);
-  if(useAI){
+  var res = { resumo:local.resumo, analise:local.analise, insights:local.insights, paletas:local.paletas, source:"local" };
+  // sempre tenta a consulta às IAs gratuitas com base nas respostas do questionário;
+  // se nenhuma responder a tempo, o diagnóstico já sai completo pelo motor local —
+  // sem expor esse mecanismo nem erros técnicos ao usuário.
+  if(AI_CONFIG.autoEnrich !== false){
     try{
       var ai = await callAI(state.answers);
       if(ai && ai.resumo){
@@ -1140,18 +992,16 @@ async function runGenerate(){
         res.analise = (ai.analise && ai.analise.length) ? ai.analise : local.analise;
         res.insights= (ai.insights && ai.insights.length) ? ai.insights : local.insights;
         res.source  = "ia";
-      } else throw new Error("resposta vazia");
-    }catch(e){
-      res.notice = "Não foi possível usar a IA ("+(e.message||"erro")+"). O diagnóstico abaixo foi gerado em modo local, a partir das suas respostas.";
-    }
-  } else {
-    await new Promise(function(r){ setTimeout(r, 400); });
+      }
+    }catch(e){ /* segue com o resultado local, já completo */ }
   }
   resetAILayer();
   var rec = saveSubmission("consolidada", state.answers, res);
   state.recId = rec ? rec.id : "";
   state.result = res; state.phase="result"; scrollTop(); render();
-  if(res.source==="ia" && aiAvailable() && AI_CONFIG.autoSintese !== false) runSintese(true);
+  // síntese e pesquisa são consultas independentes: rodam mesmo que o resumo
+  // principal tenha saído do motor local, para maximizar o que a IA consegue somar.
+  if(AI_CONFIG.autoSintese !== false) runSintese(true);
 }
 
 function buildAIPrompt(a){
@@ -1365,7 +1215,6 @@ function primeiraQueResponder(tentativas){
         function(texto){
           if(resolvido) return;
           resolvido = true;
-          state.iaProvedor = t.nome;
           resolve(texto);
         },
         function(e){
@@ -1381,12 +1230,13 @@ function primeiraQueResponder(tentativas){
   });
 }
 
-/* monta TODAS as fontes de IA disponíveis — provedores abertos sem chave, um
-   proxy próprio (se configurado) e uma chave própria opcional (embutida no
-   arquivo ou digitada pelo usuário no painel "Chave própria de IA", inclusive
-   Google Gemini) — e as dispara ao mesmo tempo. A chave própria não SUBSTITUI
-   a IA integrada: ela SOMA, como mais uma concorrente na mesma corrida. Só cai
-   para o modo local se absolutamente nenhuma fonte responder. */
+/* monta TODAS as fontes de IA gratuitas disponíveis — os provedores abertos
+   sem chave, um proxy próprio (se configurado em AI_CONFIG.proxyUrl) e uma
+   chave própria opcional embutida no código (AI_CONFIG.embeddedProvider/
+   embeddedKey/embeddedModel — não há campo na interface para isso) — e as
+   dispara ao mesmo tempo. Não é uma escolha do usuário: é sempre a mesma
+   consulta, silenciosa, cujo resultado (quando chega) já entra no diagnóstico.
+   Só cai para o motor local se absolutamente nenhuma fonte responder. */
 async function aiComplete(prompt, maxTokens, plain){
   var sys = plain
     ? "Você é um consultor sênior de branding e arquitetura de ambientes. Responde em português do Brasil, em texto corrido, direto e objetivo, sem markdown."
@@ -1402,15 +1252,12 @@ async function aiComplete(prompt, maxTokens, plain){
   if(AI_CONFIG.proxyUrl){
     tentativas.push({ nome:"proxy próprio", promessa: chamarProxy(prompt, maxTokens, plain) });
   }
-  var embedded = AI_CONFIG.embeddedKey && AI_CONFIG.embeddedProvider;
-  var prov  = embedded ? AI_CONFIG.embeddedProvider : state.ai.provider;
-  var key   = (embedded ? AI_CONFIG.embeddedKey : state.ai.key || "").trim();
-  if(prov && key){
-    var model = (embedded && AI_CONFIG.embeddedModel) ? AI_CONFIG.embeddedModel : (state.ai.model.trim() || modeloPadraoChave(prov));
-    tentativas.push({ nome: nomeProvedorChave(prov), promessa: chamarComChave(prov, key, model, prompt, mensagens, maxTokens, plain) });
+  if(AI_CONFIG.embeddedProvider && AI_CONFIG.embeddedKey){
+    var model = AI_CONFIG.embeddedModel || modeloPadraoChave(AI_CONFIG.embeddedProvider);
+    tentativas.push({ nome:"chave própria", promessa: chamarComChave(AI_CONFIG.embeddedProvider, AI_CONFIG.embeddedKey, model, prompt, mensagens, maxTokens, plain) });
   }
 
-  if(!tentativas.length) throw new Error("IA não configurada");
+  if(!tentativas.length) throw new Error("nenhuma fonte de IA configurada");
   return await primeiraQueResponder(tentativas);
 }
 
@@ -1493,7 +1340,6 @@ function buildSintesePrompt(){
     + "'riscos' com 2 a 4 itens; 'indicadores' com 2 a 4 itens. Seja concreto e aplicável a marca, ambiente físico e comunicação visual.";
 }
 async function runSintese(force){
-  if(!aiAvailable()){ state.sinteseError="IA não disponível."; render(); return; }
   if(state.sinteseLoading) return;
   if(state.result && state.result.sintese && !force) return;
   state.sinteseLoading = true; state.sinteseError = ""; render();
@@ -1508,29 +1354,24 @@ async function runSintese(force){
     state.sinteseLoading = false;
     updateSubmissionResult(state.recId, state.result);
     render();
-    if(RESEARCH_CONFIG.autoPesquisa !== false && !state.result.pesquisa) runPesquisa(true);
   }catch(e){
+    // sem consulta disponível agora: a síntese simplesmente não aparece no
+    // relatório desta vez, sem expor erro técnico — o resto do diagnóstico
+    // já é completo por conta própria.
     state.sinteseLoading = false;
-    state.sinteseError = "Não foi possível gerar a síntese (" + (e.message||"erro") + ").";
+    state.sinteseError = "erro";
     render();
-    if(RESEARCH_CONFIG.autoPesquisa !== false && !state.result.pesquisa) runPesquisa(true);
   }
+  if(RESEARCH_CONFIG.autoPesquisa !== false && !state.result.pesquisa) runPesquisa(true);
 }
 function renderSintese(idx){
   var r = state.result || {}, S = r.sintese;
+  if(!state.sinteseLoading && !S) return ""; // nunca respondeu: não aparece nada, sem expor a tentativa
   var head = '<div class="block"><h3><span class="idx">'+idx+'</span> Síntese estratégica integrada</h3>';
-  var body = '<div class="aiwrap">'
-    + '<div class="ai-head"><span class="ai-dot"></span><span class="ai-tag">Leitura integrada por IA · '+aiLabel()+'</span></div>';
+  var body = '<div class="aiwrap">';
 
   if(state.sinteseLoading){
-    return head + body + '<div class="ai-loading"><div class="spin"></div><span>A IA está cruzando todas as partes do relatório para montar a leitura final…</span></div></div></div>';
-  }
-  if(!S){
-    if(!aiAvailable()){
-      return head + body + '<p class="ai-msg">A síntese integrada precisa de IA ativa. Verifique a conexão com a internet ou informe uma chave própria no painel <b>Modo IA</b>. O restante do diagnóstico acima é completo e independe disso.</p></div></div>';
-    }
-    var errMsg = state.sinteseError ? '<p class="ai-msg err">'+esc(state.sinteseError)+'</p>' : '<p class="ai-msg">A IA pode ler todo o relatório acima e devolver uma leitura única, com plano de 90 dias, riscos e indicadores.</p>';
-    return head + body + errMsg + '<div class="no-print" style="margin-top:12px"><button class="ai-mini primary" data-sintese="1">'+(state.sinteseError?'Tentar de novo':'Gerar síntese integrada')+'</button></div></div></div>';
+    return head + body + '<div class="ai-loading"><div class="spin"></div><span>Cruzando todas as partes do relatório para montar a leitura final…</span></div></div></div>';
   }
 
   var html = head + body;
@@ -1560,8 +1401,8 @@ function renderSintese(idx){
   if(S.primeira_acao)
     html += '<div class="ai-first"><b>Comece por aqui</b><span>'+esc(S.primeira_acao)+'</span></div>';
 
-  if(aiAvailable() && !state.fromAdmin)
-    html += '<div class="no-print" style="margin-top:14px"><button class="ai-mini" data-sintese="1">↻ Refazer síntese</button></div>';
+  if(!state.fromAdmin)
+    html += '<div class="no-print" style="margin-top:14px"><button class="ai-mini" data-sintese="1">↻ Atualizar síntese</button></div>';
 
   return html + '</div></div>';
 }
@@ -1587,7 +1428,6 @@ function buildChatPrompt(question){
 async function chatAsk(question){
   question = String(question||"").trim();
   if(!question || state.chatBusy) return;
-  if(!aiAvailable()){ state.chat.push({role:"err",text:"IA não disponível para responder."}); render(); return; }
   state.chat.push({role:"me", text:question});
   state.chatDraft = ""; state.chatBusy = true; render();
   try{
@@ -1596,17 +1436,13 @@ async function chatAsk(question){
     if(!txt) throw new Error("resposta vazia");
     state.chat.push({role:"ia", text:txt});
   }catch(e){
-    state.chat.push({role:"err", text:"Não foi possível responder agora (" + (e.message||"erro") + "). Tente de novo."});
+    state.chat.push({role:"err", text:"Não foi possível responder agora. Tente de novo em instantes."});
   }
   state.chatBusy = false; render();
 }
 function renderChat(idx){
-  var html = '<div class="block no-print"><h3><span class="idx">'+idx+'</span> Converse com a IA sobre este diagnóstico</h3><div class="aiwrap">'
-    + '<div class="ai-head"><span class="ai-dot"></span><span class="ai-tag">Consultor · '+aiLabel()+'</span></div>';
-  if(!aiAvailable()){
-    return html + '<p class="ai-msg">Para conversar sobre o diagnóstico é preciso conexão com a internet (ou uma chave própria no painel <b>Modo IA</b>).</p></div></div>';
-  }
-  html += '<p class="chat-intro">A IA já leu todo o relatório acima. Pergunte como aplicar, o que priorizar ou por que uma recomendação faz sentido para a sua realidade.</p>';
+  var html = '<div class="block no-print"><h3><span class="idx">'+idx+'</span> Converse sobre este diagnóstico</h3><div class="aiwrap">'
+    + '<p class="chat-intro">Pergunte como aplicar, o que priorizar ou por que uma recomendação faz sentido para a sua realidade.</p>';
 
   if(!state.chat.length){
     html += '<div class="chat-sugs">' + chatSuggestions().map(function(q){
@@ -1617,8 +1453,8 @@ function renderChat(idx){
   html += '<div class="chat-msgs" id="chat-msgs">' + state.chat.map(function(m){
     if(m.role==="me")  return '<div class="bub me"><span class="who">Você</span>'+esc(m.text)+'</div>';
     if(m.role==="err") return '<div class="bub err">'+esc(m.text)+'</div>';
-    return '<div class="bub ia"><span class="who">Consultor IA</span>'+esc(m.text)+'</div>';
-  }).join("") + (state.chatBusy ? '<div class="bub ia"><span class="who">Consultor IA</span><span class="ai-loading"><span class="spin"></span>escrevendo…</span></div>' : '') + '</div>';
+    return '<div class="bub ia"><span class="who">Consultor</span>'+esc(m.text)+'</div>';
+  }).join("") + (state.chatBusy ? '<div class="bub ia"><span class="who">Consultor</span><span class="ai-loading"><span class="spin"></span>escrevendo…</span></div>' : '') + '</div>';
 
   html += '<div class="chat-form">'
     + '<textarea data-chatinput placeholder="Ex.: como eu aplico isso na entrada da loja?"'+(state.chatBusy?' disabled':'')+'>'+esc(state.chatDraft)+'</textarea>'
@@ -1651,11 +1487,9 @@ function updateSubmissionResult(id, result){
 
 /* ---- chamada com BUSCA WEB real (quando o provedor permite) ---- */
 async function aiWebSearch(prompt, maxTokens){
-  var embedded = AI_CONFIG.embeddedKey && AI_CONFIG.embeddedProvider;
-  var prov  = embedded ? AI_CONFIG.embeddedProvider : state.ai.provider;
-  var key   = (embedded ? AI_CONFIG.embeddedKey : state.ai.key || "").trim();
-  var model = (embedded && AI_CONFIG.embeddedModel) ? AI_CONFIG.embeddedModel
-              : (state.ai.model.trim() || (prov==="openai" ? "gpt-4o-mini" : "claude-sonnet-4-6"));
+  var prov  = AI_CONFIG.embeddedProvider;
+  var key   = (AI_CONFIG.embeddedKey || "").trim();
+  var model = AI_CONFIG.embeddedModel || modeloPadraoChave(prov);
 
   // 1) proxy próprio — repassa o pedido de busca ao backend
   if(AI_CONFIG.proxyUrl){
@@ -1665,8 +1499,8 @@ async function aiWebSearch(prompt, maxTokens){
     var dp = await rp.json();
     return { text: dp.text || dp.content || "", grounded: dp.web_search !== false };
   }
-  // 2) Anthropic — ferramenta web_search do servidor
-  if(!AI_CONFIG.keyless && prov==="anthropic" && key){
+  // 2) Anthropic (chave própria embutida) — ferramenta web_search do servidor
+  if(prov==="anthropic" && key){
     var ra = await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
       headers:{ "content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true" },
@@ -1679,8 +1513,8 @@ async function aiWebSearch(prompt, maxTokens){
     var used = (da.content||[]).some(function(b){ return b.type==="server_tool_use" || b.type==="web_search_tool_result"; });
     return { text:(da.content||[]).map(function(b){return b.type==="text"?b.text:"";}).join(""), grounded:used };
   }
-  // 3) OpenAI — Responses API com web_search
-  if(!AI_CONFIG.keyless && prov==="openai" && key){
+  // 3) OpenAI (chave própria embutida) — Responses API com web_search
+  if(prov==="openai" && key){
     var ro = await fetch("https://api.openai.com/v1/responses",{
       method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+key },
       body: JSON.stringify({ model:model, input:prompt, tools:[{type:"web_search"}] })
@@ -1772,7 +1606,6 @@ function buildPesquisaPrompt(){
 
 /* ---- execução ---- */
 async function runPesquisa(force){
-  if(!aiAvailable()){ state.pesquisaError="IA não disponível."; render(); return; }
   if(state.pesquisaLoading) return;
   if(state.result && state.result.pesquisa && !force) return;
   state.pesquisaLoading = true; state.pesquisaError = ""; render();
@@ -1833,21 +1666,12 @@ function refLinks(item){
 /* ---- render ---- */
 function renderPesquisa(idx){
   var r = state.result || {}, P = r.pesquisa;
+  if(!state.pesquisaLoading && !P) return ""; // nunca respondeu: não aparece nada, sem expor a tentativa
   var head = '<div class="block"><h3><span class="idx">'+idx+'</span> Pesquisa de inovação &amp; referências visuais</h3>';
-  var open = '<div class="aiwrap"><div class="ai-head"><span class="ai-dot"></span><span class="ai-tag">'
-    + (P && P.grounded ? 'Pesquisa online por IA · ' : 'Repertório da IA · ') + aiLabel() + '</span></div>';
+  var open = '<div class="aiwrap">';
 
   if(state.pesquisaLoading){
     return head + open + '<div class="ai-loading"><div class="spin"></div><span>Pesquisando inovações gráficas e arquitetônicas para o seu segmento e montando as referências visuais…</span></div></div></div>';
-  }
-  if(!P){
-    if(!aiAvailable())
-      return head + open + '<p class="ai-msg">A pesquisa de referências precisa de conexão com a internet. O diagnóstico acima não depende disso.</p></div></div>';
-    var msg = state.pesquisaError
-      ? '<p class="ai-msg err">'+esc(state.pesquisaError)+'</p>'
-      : '<p class="ai-msg">A IA pode pesquisar inovações gráficas e arquitetônicas do seu segmento e trazer referências ilustradas, ligadas a cada tópico do seu briefing.</p>';
-    return head + open + msg + '<div class="no-print" style="margin-top:12px"><button class="ai-mini primary" data-pesquisa="1">'
-      + (state.pesquisaError?'Tentar de novo':'Pesquisar referências') + '</button></div></div></div>';
   }
 
   var html = head + open;
@@ -1898,8 +1722,7 @@ function renderPesquisa(idx){
     html += '<p class="pq-src">As imagens são ilustrações geradas por IA para representar a ideia — use os links de cada card para ver projetos reais.'
           + ' Se alguma aparecer como “imagem indisponível”, é o gerador aberto fora do ar no momento — os links continuam funcionando.</p>';
 
-  if(aiAvailable())
-    html += '<div class="no-print" style="margin-top:14px"><button class="ai-mini" data-pesquisa="1">↻ Nova pesquisa</button></div>';
+  html += '<div class="no-print" style="margin-top:14px"><button class="ai-mini" data-pesquisa="1">↻ Nova pesquisa</button></div>';
 
   return html + '</div></div>';
 }
