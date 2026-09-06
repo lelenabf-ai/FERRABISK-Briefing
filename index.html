@@ -1016,7 +1016,7 @@ function buildAIPrompt(a){
 
 async function callAI(a, promptOverride){
   var prompt = promptOverride || buildAIPrompt(a);
-  var text = await aiComplete(prompt, 3000);
+  var text = await aiCompleteRetry(prompt, 3000, false, 2); // 2 tentativas: o usuário está esperando essa parte
   text = String(text).replace(/```json/gi,"").replace(/```/g,"").trim();
   var f=text.indexOf("{"), l=text.lastIndexOf("}");
   if(f<0||l<0) throw new Error("formato inesperado");
@@ -1261,6 +1261,21 @@ async function aiComplete(prompt, maxTokens, plain){
   return await primeiraQueResponder(tentativas);
 }
 
+/* Chama aiComplete() com repetição: os provedores gratuitos podem estar
+   momentaneamente sobrecarregados (ainda mais logo após uma consulta anterior
+   ter acabado de usá-los), então uma segunda ou terceira tentativa, com um
+   pequeno intervalo, recupera boa parte dos casos que pareceriam "fora do ar"
+   numa tentativa única. Só desiste de vez depois de esgotar as tentativas. */
+async function aiCompleteRetry(prompt, maxTokens, plain, tentativas, esperaMs){
+  tentativas = tentativas || 3; esperaMs = esperaMs || 2500;
+  var ultimoErro;
+  for(var i=1; i<=tentativas; i++){
+    try{ return await aiComplete(prompt, maxTokens, plain); }
+    catch(e){ ultimoErro = e; if(i<tentativas) await new Promise(function(r){ setTimeout(r, esperaMs); }); }
+  }
+  throw ultimoErro;
+}
+
 /* ============================================================== *
  *  CAMADA DE IA — integra o RELATÓRIO FINAL
  *  1) Síntese estratégica: a IA lê o relatório inteiro (respostas +
@@ -1344,7 +1359,10 @@ async function runSintese(force){
   if(state.result && state.result.sintese && !force) return;
   state.sinteseLoading = true; state.sinteseError = ""; render();
   try{
-    var txt = await aiComplete(buildSintesePrompt(), 2200);
+    // até 3 tentativas: os provedores gratuitos costumam estar mais ocupados
+    // logo depois da consulta do diagnóstico principal, então vale insistir
+    // um pouco antes de desistir desta parte do relatório.
+    var txt = await aiCompleteRetry(buildSintesePrompt(), 2200, false, 3);
     txt = String(txt).replace(/```json/gi,"").replace(/```/g,"").trim();
     var f = txt.indexOf("{"), l = txt.lastIndexOf("}");
     if(f<0||l<0) throw new Error("formato inesperado");
@@ -1355,9 +1373,8 @@ async function runSintese(force){
     updateSubmissionResult(state.recId, state.result);
     render();
   }catch(e){
-    // sem consulta disponível agora: a síntese simplesmente não aparece no
-    // relatório desta vez, sem expor erro técnico — o resto do diagnóstico
-    // já é completo por conta própria.
+    // mesmo com as tentativas, não veio resposta desta vez — sem expor erro
+    // técnico, mas com um jeito simples de tentar de novo (ver renderSintese).
     state.sinteseLoading = false;
     state.sinteseError = "erro";
     render();
@@ -1366,12 +1383,16 @@ async function runSintese(force){
 }
 function renderSintese(idx){
   var r = state.result || {}, S = r.sintese;
-  if(!state.sinteseLoading && !S) return ""; // nunca respondeu: não aparece nada, sem expor a tentativa
+  if(!state.sinteseLoading && !S && !state.sinteseError) return ""; // ainda não foi tentado
   var head = '<div class="block"><h3><span class="idx">'+idx+'</span> Síntese estratégica integrada</h3>';
   var body = '<div class="aiwrap">';
 
   if(state.sinteseLoading){
     return head + body + '<div class="ai-loading"><div class="spin"></div><span>Cruzando todas as partes do relatório para montar a leitura final…</span></div></div></div>';
+  }
+  if(!S){
+    return head + body + '<p class="ai-msg">Não foi possível aprofundar esta parte do diagnóstico agora. O restante do relatório já é completo por conta própria.</p>'
+      + '<div class="no-print" style="margin-top:12px"><button class="ai-mini primary" data-sintese="1">Tentar de novo</button></div></div></div>';
   }
 
   var html = head + body;
@@ -1609,31 +1630,42 @@ async function runPesquisa(force){
   if(state.pesquisaLoading) return;
   if(state.result && state.result.pesquisa && !force) return;
   state.pesquisaLoading = true; state.pesquisaError = ""; render();
-  var prompt = buildPesquisaPrompt(), raw = "", grounded = false;
-  try{
-    if(RESEARCH_CONFIG.web !== false){
-      try{
-        var w = await aiWebSearch(prompt, 3200);
-        if(w && w.text && String(w.text).trim()){ raw = w.text; grounded = !!w.grounded; }
-      }catch(e){ /* cai para o modo sem busca */ }
+  var prompt = buildPesquisaPrompt(), ultimoErro = null;
+  // até 3 tentativas completas (busca web + retorno sem busca), com um pequeno
+  // intervalo entre elas — mesma lógica da síntese: os provedores gratuitos
+  // podem estar temporariamente ocupados logo após as consultas anteriores.
+  for(var tentativa=1; tentativa<=3; tentativa++){
+    try{
+      var raw = "", grounded = false;
+      if(RESEARCH_CONFIG.web !== false){
+        try{
+          var w = await aiWebSearch(prompt, 3200);
+          if(w && w.text && String(w.text).trim()){ raw = w.text; grounded = !!w.grounded; }
+        }catch(e){ /* cai para o modo sem busca */ }
+      }
+      if(!raw){ raw = await aiComplete(prompt, 3200); grounded = false; }
+      var txt = String(raw).replace(/```json/gi,"").replace(/```/g,"").trim();
+      var f = txt.indexOf("{"), l = txt.lastIndexOf("}");
+      if(f<0||l<0) throw new Error("formato inesperado");
+      var d = JSON.parse(txt.slice(f,l+1));
+      if(!d || !(d.referencias && d.referencias.length)) throw new Error("nenhuma referência retornada");
+      d.grounded = grounded;
+      d.ts = Date.now();
+      state.result.pesquisa = d;
+      state.pesquisaLoading = false;
+      updateSubmissionResult(state.recId, state.result);
+      render();
+      return;
+    }catch(e){
+      ultimoErro = e;
+      if(tentativa<3) await new Promise(function(r){ setTimeout(r, 2500); });
     }
-    if(!raw){ raw = await aiComplete(prompt, 3200); grounded = false; }
-    var txt = String(raw).replace(/```json/gi,"").replace(/```/g,"").trim();
-    var f = txt.indexOf("{"), l = txt.lastIndexOf("}");
-    if(f<0||l<0) throw new Error("formato inesperado");
-    var d = JSON.parse(txt.slice(f,l+1));
-    if(!d || !(d.referencias && d.referencias.length)) throw new Error("nenhuma referência retornada");
-    d.grounded = grounded;
-    d.ts = Date.now();
-    state.result.pesquisa = d;
-    state.pesquisaLoading = false;
-    updateSubmissionResult(state.recId, state.result);
-    render();
-  }catch(e){
-    state.pesquisaLoading = false;
-    state.pesquisaError = "Não foi possível concluir a pesquisa (" + (e.message||"erro") + ").";
-    render();
   }
+  // mesmo com as tentativas, não veio resposta desta vez — sem expor erro
+  // técnico, mas com um jeito simples de tentar de novo (ver renderPesquisa).
+  state.pesquisaLoading = false;
+  state.pesquisaError = "erro";
+  render();
 }
 
 /* ---- imagem ilustrativa + links de busca ---- */
@@ -1666,12 +1698,16 @@ function refLinks(item){
 /* ---- render ---- */
 function renderPesquisa(idx){
   var r = state.result || {}, P = r.pesquisa;
-  if(!state.pesquisaLoading && !P) return ""; // nunca respondeu: não aparece nada, sem expor a tentativa
+  if(!state.pesquisaLoading && !P && !state.pesquisaError) return ""; // ainda não foi tentado
   var head = '<div class="block"><h3><span class="idx">'+idx+'</span> Pesquisa de inovação &amp; referências visuais</h3>';
   var open = '<div class="aiwrap">';
 
   if(state.pesquisaLoading){
     return head + open + '<div class="ai-loading"><div class="spin"></div><span>Pesquisando inovações gráficas e arquitetônicas para o seu segmento e montando as referências visuais…</span></div></div></div>';
+  }
+  if(!P){
+    return head + open + '<p class="ai-msg">Não foi possível buscar referências agora. O restante do relatório já é completo por conta própria.</p>'
+      + '<div class="no-print" style="margin-top:12px"><button class="ai-mini primary" data-pesquisa="1">Tentar de novo</button></div></div></div>';
   }
 
   var html = head + open;
