@@ -1016,7 +1016,7 @@ function buildAIPrompt(a){
 
 async function callAI(a, promptOverride){
   var prompt = promptOverride || buildAIPrompt(a);
-  var text = await aiCompleteRetry(prompt, 3000, false, 2); // 2 tentativas: o usuário está esperando essa parte
+  var text = await aiCompleteRetry(prompt, 3000, false, 2, [2500]); // 2 tentativas: o usuário está esperando essa parte
   text = String(text).replace(/```json/gi,"").replace(/```/g,"").trim();
   var f=text.indexOf("{"), l=text.lastIndexOf("}");
   if(f<0||l<0) throw new Error("formato inesperado");
@@ -1263,15 +1263,25 @@ async function aiComplete(prompt, maxTokens, plain){
 
 /* Chama aiComplete() com repetição: os provedores gratuitos podem estar
    momentaneamente sobrecarregados (ainda mais logo após uma consulta anterior
-   ter acabado de usá-los), então uma segunda ou terceira tentativa, com um
-   pequeno intervalo, recupera boa parte dos casos que pareceriam "fora do ar"
-   numa tentativa única. Só desiste de vez depois de esgotar as tentativas. */
-async function aiCompleteRetry(prompt, maxTokens, plain, tentativas, esperaMs){
-  tentativas = tentativas || 3; esperaMs = esperaMs || 2500;
+   ter acabado de usá-los, ou num limite de uso que só libera depois de alguns
+   segundos), então tentar de novo — com uma pausa CRESCENTE entre as tentativas
+   — recupera boa parte dos casos que pareceriam "fora do ar" numa tentativa só.
+   'esperasMs' é a lista de pausas entre tentativas (uma a menos que o total de
+   tentativas); o padrão cresce até ~12s, dando mais tempo pros provedores mais
+   lentos a liberar. Só desiste de vez depois de esgotar todas as tentativas. */
+async function aiCompleteRetry(prompt, maxTokens, plain, tentativas, esperasMs){
+  tentativas = tentativas || 3;
+  esperasMs = esperasMs || [2000, 4000, 7000, 12000, 12000, 12000];
   var ultimoErro;
   for(var i=1; i<=tentativas; i++){
     try{ return await aiComplete(prompt, maxTokens, plain); }
-    catch(e){ ultimoErro = e; if(i<tentativas) await new Promise(function(r){ setTimeout(r, esperaMs); }); }
+    catch(e){
+      ultimoErro = e;
+      if(i<tentativas){
+        var espera = esperasMs[Math.min(i-1, esperasMs.length-1)];
+        await new Promise(function(r){ setTimeout(r, espera); });
+      }
+    }
   }
   throw ultimoErro;
 }
@@ -1359,10 +1369,12 @@ async function runSintese(force){
   if(state.result && state.result.sintese && !force) return;
   state.sinteseLoading = true; state.sinteseError = ""; render();
   try{
-    // até 3 tentativas: os provedores gratuitos costumam estar mais ocupados
-    // logo depois da consulta do diagnóstico principal, então vale insistir
-    // um pouco antes de desistir desta parte do relatório.
-    var txt = await aiCompleteRetry(buildSintesePrompt(), 2200, false, 3);
+    // até 5 tentativas, com pausas crescentes: roda em segundo plano (não
+    // trava a tela do usuário), então vale insistir bastante — os provedores
+    // gratuitos costumam estar mais ocupados logo depois da consulta do
+    // diagnóstico principal, e alguns só liberam de novo depois de alguns
+    // segundos de limite de uso.
+    var txt = await aiCompleteRetry(buildSintesePrompt(), 2200, false, 5);
     txt = String(txt).replace(/```json/gi,"").replace(/```/g,"").trim();
     var f = txt.indexOf("{"), l = txt.lastIndexOf("}");
     if(f<0||l<0) throw new Error("formato inesperado");
@@ -1630,11 +1642,11 @@ async function runPesquisa(force){
   if(state.pesquisaLoading) return;
   if(state.result && state.result.pesquisa && !force) return;
   state.pesquisaLoading = true; state.pesquisaError = ""; render();
-  var prompt = buildPesquisaPrompt(), ultimoErro = null;
-  // até 3 tentativas completas (busca web + retorno sem busca), com um pequeno
-  // intervalo entre elas — mesma lógica da síntese: os provedores gratuitos
-  // podem estar temporariamente ocupados logo após as consultas anteriores.
-  for(var tentativa=1; tentativa<=3; tentativa++){
+  var prompt = buildPesquisaPrompt(), ultimoErro = null, TENTATIVAS_PESQUISA = 5;
+  // até 5 tentativas completas (busca web + retorno sem busca), com pausas
+  // crescentes — mesma lógica da síntese: roda em segundo plano, então vale
+  // insistir bastante antes de deixar essa parte do relatório sem resposta.
+  for(var tentativa=1; tentativa<=TENTATIVAS_PESQUISA; tentativa++){
     try{
       var raw = "", grounded = false;
       if(RESEARCH_CONFIG.web !== false){
@@ -1658,7 +1670,10 @@ async function runPesquisa(force){
       return;
     }catch(e){
       ultimoErro = e;
-      if(tentativa<3) await new Promise(function(r){ setTimeout(r, 2500); });
+      if(tentativa<TENTATIVAS_PESQUISA){
+        var esperasPesquisa = [2000, 4000, 7000, 12000];
+        await new Promise(function(r){ setTimeout(r, esperasPesquisa[Math.min(tentativa-1, esperasPesquisa.length-1)]); });
+      }
     }
   }
   // mesmo com as tentativas, não veio resposta desta vez — sem expor erro
