@@ -46,19 +46,30 @@ body{
   text-align:right;line-height:1.5;}
 .stamp a{color:var(--text-light);}
 
-.grid{display:grid;grid-template-columns:430px 1fr;gap:22px;align-items:start;}
-@media (max-width:960px){.grid{grid-template-columns:1fr;}}
+.layout-hint{font-size:11px;color:var(--text-warm);font-family:var(--font-body);
+  margin:-16px 0 18px;opacity:.8;}
+.layout-hint svg{width:12px;height:12px;vertical-align:-1.5px;margin-right:3px;}
 
-.controls-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;}
-@media (max-width:640px){.controls-row{grid-template-columns:1fr;}}
-@media (max-width:960px) and (min-width:641px){.controls-row{grid-template-columns:1fr 1fr;}}
+.board{display:flex;flex-wrap:wrap;align-items:flex-start;gap:20px;}
 
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
-  padding:22px 22px 24px;box-shadow:0 6px 20px rgba(0,0,0,.18);margin-bottom:20px;}
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:22px 22px 24px;box-shadow:0 6px 20px rgba(0,0,0,.18);
+  box-sizing:border-box;overflow:auto;resize:both;
+  width:390px;min-width:260px;min-height:96px;max-width:100%;flex:0 0 auto;}
+.card.card-wide{width:600px;}
+.card.dragging{opacity:.45;outline:2px dashed var(--accent);}
+.card.drop-target{outline:2px dashed var(--accent);outline-offset:2px;}
 .card h2{font-family:var(--font-head);font-weight:700;font-size:17px;
-  letter-spacing:-.01em;margin:0 0 4px;color:var(--text-light);}
+  letter-spacing:-.01em;margin:0 26px 4px 0;color:var(--text-light);}
 .card .sub{font-family:var(--font-body);font-weight:500;font-size:11px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--text-warm);margin:0 0 16px;}
+
+.drag-handle{position:absolute;top:16px;right:16px;width:26px;height:26px;border-radius:6px;
+  border:1px solid transparent;background:transparent;color:var(--text-warm);cursor:grab;
+  display:flex;align-items:center;justify-content:center;opacity:.55;transition:all .12s;}
+.drag-handle:hover{opacity:1;background:var(--panel-dark);border-color:var(--line);}
+.drag-handle:active{cursor:grabbing;}
+.drag-handle svg{width:15px;height:15px;pointer-events:none;}
 
 .drop{border:2px dashed var(--line);border-radius:10px;padding:14px 16px;
   display:flex;align-items:center;gap:12px;text-align:left;
@@ -175,6 +186,12 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
   border-radius:8px;padding:10px 18px;font-size:13px;font-family:var(--font-body);font-weight:500;
   opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:86vw;}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media (max-width:720px){
+  .card{resize:none !important;width:100% !important;height:auto !important;}
+  .drag-handle{display:none;}
+  .layout-hint{display:none;}
+}
 </style>
 </head>
 <body>
@@ -186,138 +203,147 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
       <h1>Vetorizador de Imagens</h1>
       <p>Converta uma imagem (PNG, JPG, WEBP…) em vetor SVG direto no navegador. Nada é enviado para servidor — o processamento acontece só no seu computador.</p>
     </div>
-    <div class="stamp">bitmap → SVG<br/>100% local / offline</div>
+    <div>
+      <div class="stamp">bitmap → SVG<br/>100% local / offline</div>
+      <button class="btn btn-ghost" id="btnResetLayout" style="margin-top:10px;">↺ Restaurar layout padrão</button>
+    </div>
   </header>
 
-  <div class="grid">
-    <div>
-      <div class="card">
-        <h2>1. Escolha a imagem</h2>
-        <p class="sub">PNG · JPG · WEBP · GIF · BMP</p>
+  <p class="layout-hint">
+    <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg>
+    Arraste pela alça no canto de cada painel para reorganizar, e puxe o canto inferior direito para aumentar ou diminuir.
+  </p>
 
-        <label class="drop" id="drop">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-          <div class="dt">
-            <div class="t1">Arraste uma imagem aqui</div>
-            <div class="t2">ou clique para escolher o arquivo</div>
-          </div>
-          <input type="file" id="fileInput" accept="image/*" />
-        </label>
+  <div class="board" id="board">
 
-        <div class="filemeta" id="fileMeta"></div>
+    <div class="card" id="card-imagem">
+      <button class="drag-handle" title="Arrastar para reorganizar"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg></button>
+      <h2>1. Escolha a imagem</h2>
+      <p class="sub">PNG · JPG · WEBP · GIF · BMP</p>
+
+      <label class="drop" id="drop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        <div class="dt">
+          <div class="t1">Arraste uma imagem aqui</div>
+          <div class="t2">ou clique para escolher o arquivo</div>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" />
+      </label>
+
+      <div class="filemeta" id="fileMeta"></div>
+    </div>
+
+    <div class="card card-wide" id="resultCard">
+      <button class="drag-handle" title="Arrastar para reorganizar"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg></button>
+      <h2>Resultado</h2>
+      <p class="sub">Original × vetor SVG</p>
+      <div id="resultArea">
+        <div class="result-empty">Envie uma imagem e clique em "Vetorizar imagem" para ver o resultado aqui.</div>
       </div>
+    </div>
 
-      <div class="controls-row">
-        <div class="card">
-          <h2>2. Pré-processamento</h2>
-          <p class="sub">Ajuste de bitmap, estilo Photoshop</p>
+    <div class="card" id="card-preprocess">
+      <button class="drag-handle" title="Arrastar para reorganizar"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg></button>
+      <h2>2. Pré-processamento</h2>
+      <p class="sub">Ajuste de bitmap, estilo Photoshop</p>
 
-          <div class="field-row">
-            <div class="field">
-              <label>Contraste <span class="val" id="contrastVal">0</span></label>
-              <span class="hint">Separa claros de escuros</span>
-              <input type="range" id="contrast" min="-100" max="100" value="0" step="1" />
-            </div>
-            <div class="field">
-              <label>Brilho <span class="val" id="brightnessVal">0</span></label>
-              <span class="hint">Clareia ou escurece tudo</span>
-              <input type="range" id="brightness" min="-100" max="100" value="0" step="1" />
-            </div>
-          </div>
-
-          <button class="btn btn-ghost" id="btnAutoContrast" style="margin-top:16px;width:100%;">Auto-contraste (esticar histograma)</button>
-
-          <label class="check-row">
-            <input type="checkbox" id="ignoreWhite" />
-            <span class="ctext">Ignore White (ignorar branco)
-              <span class="sh">Fundo branco/quase-branco vira transparente no SVG</span>
-            </span>
-          </label>
-        </div>
-
-        <div class="card">
-          <h2>3. Image Trace</h2>
-          <p class="sub">Modo e cor</p>
-
-          <div class="field" style="margin-top:0;">
-            <label>Modo</label>
-            <div class="modes" id="modes">
-              <div class="mode-btn active" data-mode="cor">Colorido</div>
-              <div class="mode-btn" data-mode="cinza">Cinza</div>
-              <div class="mode-btn" data-mode="pb">P&amp;B</div>
-            </div>
-          </div>
-
-          <div class="field" id="colorsField">
-            <label>Número de cores <span class="val" id="colorsVal">12</span></label>
-            <span class="hint">Mais cores = mais fiel, arquivo maior</span>
-            <input type="range" id="colors" min="2" max="32" value="12" step="1" />
-          </div>
-
-          <div class="field pb-only" id="thresholdField">
-            <label>Limiar preto/branco <span class="val" id="threshVal">128</span></label>
-            <span class="hint">Move a linha entre preto e branco</span>
-            <input type="range" id="threshold" min="10" max="245" value="128" step="1" />
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Parâmetros avançados</h2>
-        <p class="sub">Traçado — estilo painel Image Trace</p>
-
-        <div class="field-row">
-          <div class="field" style="margin-top:0;">
-            <label>Paths <span class="val" id="pathsVal">5</span></label>
-            <span class="hint">Ajuste do caminho às curvas</span>
-            <input type="range" id="paths" min="1" max="10" value="5" step="1" />
-          </div>
-          <div class="field" style="margin-top:0;">
-            <label>Noise <span class="val" id="noiseVal">8</span>px</label>
-            <span class="hint">Descarta manchas pequenas</span>
-            <input type="range" id="noise" min="0" max="40" value="8" step="1" />
-          </div>
-        </div>
-
-        <div class="field-row" style="margin-top:16px;">
-          <div class="field" style="margin-top:0;">
-            <label>Corners</label>
-            <div class="seg2" id="corners">
-              <div class="mode-btn active" data-corners="sharp">Nítidos<span class="sh">ângulos retos</span></div>
-              <div class="mode-btn" data-corners="smooth">Suaves<span class="sh">cantos arredondados</span></div>
-            </div>
-          </div>
-          <div class="field" style="margin-top:0;">
-            <label>Method</label>
-            <div class="seg2" id="method">
-              <div class="mode-btn active" data-method="abutting">Abutting<span class="sh">encostar</span></div>
-              <div class="mode-btn" data-method="overlapping">Overlapping<span class="sh">sobrepor</span></div>
-            </div>
-          </div>
-        </div>
-
+      <div class="field-row">
         <div class="field">
-          <label>Suavizar ruído (blur) <span class="val" id="blurVal">0</span></label>
-          <span class="hint">Reduz granulado antes de vetorizar (fotos escaneadas)</span>
-          <input type="range" id="blur" min="0" max="8" value="0" step="1" />
+          <label>Contraste <span class="val" id="contrastVal">0</span></label>
+          <span class="hint">Separa claros de escuros</span>
+          <input type="range" id="contrast" min="-100" max="100" value="0" step="1" />
         </div>
+        <div class="field">
+          <label>Brilho <span class="val" id="brightnessVal">0</span></label>
+          <span class="hint">Clareia ou escurece tudo</span>
+          <input type="range" id="brightness" min="-100" max="100" value="0" step="1" />
+        </div>
+      </div>
 
-        <button class="btn btn-main" id="btnVectorize" disabled>Vetorizar imagem</button>
+      <button class="btn btn-ghost" id="btnAutoContrast" style="margin-top:16px;width:100%;">Auto-contraste (esticar histograma)</button>
+
+      <label class="check-row">
+        <input type="checkbox" id="ignoreWhite" />
+        <span class="ctext">Ignore White (ignorar branco)
+          <span class="sh">Fundo branco/quase-branco vira transparente no SVG</span>
+        </span>
+      </label>
+    </div>
+
+    <div class="card" id="card-trace">
+      <button class="drag-handle" title="Arrastar para reorganizar"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg></button>
+      <h2>3. Image Trace</h2>
+      <p class="sub">Modo e cor</p>
+
+      <div class="field" style="margin-top:0;">
+        <label>Modo</label>
+        <div class="modes" id="modes">
+          <div class="mode-btn active" data-mode="cor">Colorido</div>
+          <div class="mode-btn" data-mode="cinza">Cinza</div>
+          <div class="mode-btn" data-mode="pb">P&amp;B</div>
+        </div>
+      </div>
+
+      <div class="field" id="colorsField">
+        <label>Número de cores <span class="val" id="colorsVal">12</span></label>
+        <span class="hint">Mais cores = mais fiel, arquivo maior</span>
+        <input type="range" id="colors" min="2" max="32" value="12" step="1" />
+      </div>
+
+      <div class="field pb-only" id="thresholdField">
+        <label>Limiar preto/branco <span class="val" id="threshVal">128</span></label>
+        <span class="hint">Move a linha entre preto e branco</span>
+        <input type="range" id="threshold" min="10" max="245" value="128" step="1" />
       </div>
     </div>
 
-    <div>
-      <div class="card" id="resultCard">
-        <h2>Resultado</h2>
-        <p class="sub">Original × vetor SVG</p>
-        <div id="resultArea">
-          <div class="result-empty">Envie uma imagem e clique em "Vetorizar imagem" para ver o resultado aqui.</div>
+    <div class="card card-wide" id="card-advanced">
+      <button class="drag-handle" title="Arrastar para reorganizar"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg></button>
+      <h2>Parâmetros avançados</h2>
+      <p class="sub">Traçado — estilo painel Image Trace</p>
+
+      <div class="field-row">
+        <div class="field" style="margin-top:0;">
+          <label>Paths <span class="val" id="pathsVal">5</span></label>
+          <span class="hint">Ajuste do caminho às curvas</span>
+          <input type="range" id="paths" min="1" max="10" value="5" step="1" />
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Noise <span class="val" id="noiseVal">8</span>px</label>
+          <span class="hint">Descarta manchas pequenas</span>
+          <input type="range" id="noise" min="0" max="40" value="8" step="1" />
         </div>
       </div>
+
+      <div class="field-row" style="margin-top:16px;">
+        <div class="field" style="margin-top:0;">
+          <label>Corners</label>
+          <div class="seg2" id="corners">
+            <div class="mode-btn active" data-corners="sharp">Nítidos<span class="sh">ângulos retos</span></div>
+            <div class="mode-btn" data-corners="smooth">Suaves<span class="sh">cantos arredondados</span></div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Method</label>
+          <div class="seg2" id="method">
+            <div class="mode-btn active" data-method="abutting">Abutting<span class="sh">encostar</span></div>
+            <div class="mode-btn" data-method="overlapping">Overlapping<span class="sh">sobrepor</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Suavizar ruído (blur) <span class="val" id="blurVal">0</span></label>
+        <span class="hint">Reduz granulado antes de vetorizar (fotos escaneadas)</span>
+        <input type="range" id="blur" min="0" max="8" value="0" step="1" />
+      </div>
+
+      <button class="btn btn-main" id="btnVectorize" disabled>Vetorizar imagem</button>
     </div>
+
   </div>
 
-  <div class="priv">As imagens não saem do seu navegador — tudo roda localmente, sem upload para nenhum servidor.</div>
+  <div class="priv">As imagens não saem do seu navegador — tudo roda localmente, sem upload para nenhum servidor. O layout dos painéis também fica salvo só no seu navegador.</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1596,6 +1622,123 @@ if(typeof define === 'function' && define.amd){
     clearTimeout(toastEl._t);
     toastEl._t = setTimeout(function(){ toastEl.classList.remove('on'); }, 2800);
   }
+
+  // ---- painéis: reorganizar (arrastar) e redimensionar (arrastar o canto) manualmente ----
+  (function initLayout(){
+    var board = document.getElementById('board');
+    var btnResetLayout = document.getElementById('btnResetLayout');
+    if(!board) return;
+    var LAYOUT_KEY = 'vetorizador:layout:v1';
+    var cards = Array.prototype.slice.call(board.querySelectorAll('.card'));
+
+    function readLayout(){
+      try{
+        var raw = localStorage.getItem(LAYOUT_KEY);
+        return raw ? JSON.parse(raw) : {};
+      }catch(e){ return {}; }
+    }
+    function writeLayout(data){
+      try{ localStorage.setItem(LAYOUT_KEY, JSON.stringify(data)); }catch(e){}
+    }
+
+    function applySavedLayout(){
+      var data = readLayout();
+      if(data.order && Array.isArray(data.order)){
+        data.order.forEach(function(id){
+          var el = document.getElementById(id);
+          if(el && el.parentNode === board) board.appendChild(el);
+        });
+      }
+      if(data.sizes){
+        cards.forEach(function(c){
+          var s = data.sizes[c.id];
+          if(s && s.w) c.style.width = s.w + 'px';
+          if(s && s.h) c.style.height = s.h + 'px';
+        });
+      }
+    }
+
+    function saveOrder(){
+      var order = Array.prototype.map.call(board.children, function(c){ return c.id; });
+      var data = readLayout();
+      data.order = order;
+      writeLayout(data);
+    }
+
+    function saveSize(id, w, h){
+      var data = readLayout();
+      data.sizes = data.sizes || {};
+      data.sizes[id] = { w: w, h: h };
+      writeLayout(data);
+    }
+
+    applySavedLayout();
+
+    // Drag to reorder — the whole card is draggable, but dragstart is cancelled
+    // unless it actually started on the grip handle, so sliders/buttons/text
+    // inside the card are never hijacked by native drag-and-drop.
+    var dragging = null;
+    cards.forEach(function(card){
+      card.setAttribute('draggable', 'true');
+
+      card.addEventListener('dragstart', function(e){
+        if(!e.target.closest('.drag-handle')){ e.preventDefault(); return; }
+        dragging = card;
+        card.classList.add('dragging');
+        if(e.dataTransfer){
+          e.dataTransfer.effectAllowed = 'move';
+          try{ e.dataTransfer.setData('text/plain', card.id); }catch(err){}
+        }
+      });
+
+      card.addEventListener('dragend', function(){
+        card.classList.remove('dragging');
+        cards.forEach(function(c){ c.classList.remove('drop-target'); });
+        dragging = null;
+        saveOrder();
+      });
+
+      card.addEventListener('dragover', function(e){
+        if(!dragging || dragging === card) return;
+        e.preventDefault();
+        cards.forEach(function(c){ c.classList.remove('drop-target'); });
+        card.classList.add('drop-target');
+        var rect = card.getBoundingClientRect();
+        var before = (e.clientX - rect.left) < rect.width / 2;
+        board.insertBefore(dragging, before ? card : card.nextSibling);
+      });
+
+      card.addEventListener('drop', function(e){ e.preventDefault(); });
+    });
+    board.addEventListener('dragover', function(e){ e.preventDefault(); });
+
+    // Resize (native corner handle from CSS `resize:both`) — persist per card.
+    // Read size via getBoundingClientRect (border-box), not entry.contentRect
+    // (content-box only): cards are box-sizing:border-box, so el.style.width
+    // must be saved/restored as the border-box size or every reload would
+    // shrink the card by its own padding.
+    if('ResizeObserver' in window){
+      var ro = new ResizeObserver(function(entries){
+        entries.forEach(function(entry){
+          var el = entry.target;
+          clearTimeout(el._resizeTimer);
+          el._resizeTimer = setTimeout(function(){
+            var rect = el.getBoundingClientRect();
+            saveSize(el.id, Math.round(rect.width), Math.round(rect.height));
+          }, 350);
+        });
+      });
+      cards.forEach(function(c){ ro.observe(c); });
+    }
+
+    if(btnResetLayout){
+      btnResetLayout.addEventListener('click', function(){
+        try{ localStorage.removeItem(LAYOUT_KEY); }catch(e){}
+        cards.forEach(function(c){ c.style.width = ''; c.style.height = ''; });
+        location.reload();
+      });
+    }
+  })();
 
   function fmtBytes(n){
     if(n < 1024) return n + ' B';
