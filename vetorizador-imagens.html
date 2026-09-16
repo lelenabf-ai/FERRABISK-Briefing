@@ -112,8 +112,8 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 .mode-btn .sh{display:block;font-size:10px;font-family:var(--font-body);
   font-weight:400;opacity:.8;margin-top:2px;text-transform:none;letter-spacing:0;}
 
-.pb-only{display:none;}
-.pb-only.on{display:block;}
+.pb-only,.opt-field{display:none;}
+.pb-only.on,.opt-field.on{display:block;}
 
 .check-row{display:flex;align-items:center;gap:9px;margin-top:14px;cursor:pointer;}
 .check-row input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex:none;}
@@ -277,6 +277,21 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
           <span class="sh">Fundo branco/quase-branco vira transparente no SVG</span>
         </span>
       </label>
+
+      <hr class="divider" />
+
+      <label class="check-row">
+        <input type="checkbox" id="removeBg" />
+        <span class="ctext">Remover fundo
+          <span class="sh">Detecta a cor das bordas e apaga tudo que for conectado a ela, de qualquer cor</span>
+        </span>
+      </label>
+
+      <div class="field opt-field" id="bgToleranceField">
+        <label>Tolerância <span class="val" id="bgToleranceVal">30</span></label>
+        <span class="hint">Mais alto = remove uma faixa maior de tons parecidos com o fundo</span>
+        <input type="range" id="bgTolerance" min="1" max="100" value="30" step="1" />
+      </div>
     </div>
 
     <div class="card" id="card-trace">
@@ -1627,6 +1642,10 @@ if(typeof define === 'function' && define.amd){
   var brightnessVal = document.getElementById('brightnessVal');
   var ignoreWhiteEl = document.getElementById('ignoreWhite');
   var btnAutoContrast = document.getElementById('btnAutoContrast');
+  var removeBgEl = document.getElementById('removeBg');
+  var bgToleranceField = document.getElementById('bgToleranceField');
+  var bgToleranceEl = document.getElementById('bgTolerance');
+  var bgToleranceVal = document.getElementById('bgToleranceVal');
 
   function toast(msg){
     toastEl.textContent = msg;
@@ -1796,6 +1815,11 @@ if(typeof define === 'function' && define.amd){
   contrastEl.addEventListener('input', function(){ contrastVal.textContent = contrastEl.value; schedulePreview(); });
   brightnessEl.addEventListener('input', function(){ brightnessVal.textContent = brightnessEl.value; schedulePreview(); });
   ignoreWhiteEl.addEventListener('change', schedulePreview);
+  bgToleranceEl.addEventListener('input', function(){ bgToleranceVal.textContent = bgToleranceEl.value; schedulePreview(); });
+  removeBgEl.addEventListener('change', function(){
+    bgToleranceField.classList.toggle('on', removeBgEl.checked);
+    schedulePreview();
+  });
 
   // ---- drop zone ----
   drop.addEventListener('click', function(e){
@@ -1926,6 +1950,52 @@ if(typeof define === 'function' && define.amd){
     }
   }
 
+  // Remove fundo: detecta a cor de fundo pela média dos 4 cantos e apaga por
+  // preenchimento (flood fill) a partir das bordas — só o que está CONECTADO
+  // à borda e parecido com essa cor vira transparente, então uma área da
+  // mesma cor isolada dentro do sujeito (ex.: um botão branco numa camisa
+  // branca sobre fundo branco) não é afetada.
+  function applyRemoveBackground(clone, tolerancePct){
+    var w = clone.width, h = clone.height, d = clone.data;
+    if(w < 2 || h < 2) return;
+
+    var corners = [[0,0], [w-1,0], [0,h-1], [w-1,h-1]];
+    var refR = 0, refG = 0, refB = 0;
+    corners.forEach(function(c){
+      var idx = (c[1]*w + c[0]) * 4;
+      refR += d[idx]; refG += d[idx+1]; refB += d[idx+2];
+    });
+    refR /= 4; refG /= 4; refB /= 4;
+
+    var maxDist = (tolerancePct / 100) * 441.7; // 441.7 ~= sqrt(255^2*3), the max possible RGB distance
+    var visited = new Uint8Array(w * h);
+    var queue = new Int32Array(w * h);
+    var qHead = 0, qTail = 0;
+
+    function tryAdd(x, y){
+      if(x < 0 || x >= w || y < 0 || y >= h) return;
+      var pi = y * w + x;
+      if(visited[pi]) return;
+      visited[pi] = 1;
+      var idx = pi * 4;
+      if(d[idx+3] === 0){ queue[qTail++] = pi; return; } // already transparent: keep flooding through it
+      var dr = d[idx] - refR, dg = d[idx+1] - refG, db = d[idx+2] - refB;
+      if(Math.sqrt(dr*dr + dg*dg + db*db) <= maxDist){
+        d[idx+3] = 0;
+        queue[qTail++] = pi;
+      }
+    }
+
+    for(var x = 0; x < w; x++){ tryAdd(x, 0); tryAdd(x, h-1); }
+    for(var y = 0; y < h; y++){ tryAdd(0, y); tryAdd(w-1, y); }
+
+    while(qHead < qTail){
+      var pi = queue[qHead++];
+      var px = pi % w, py = (pi - px) / w;
+      tryAdd(px - 1, py); tryAdd(px + 1, py); tryAdd(px, py - 1); tryAdd(px, py + 1);
+    }
+  }
+
   function prepareImageData(){
     var clone = cloneImageData(state.imgd);
     var d = clone.data;
@@ -1948,6 +2018,10 @@ if(typeof define === 'function' && define.amd){
         var v = d[j] >= th ? 255 : 0;
         d[j] = d[j+1] = d[j+2] = v;
       }
+    }
+
+    if(removeBgEl.checked){
+      applyRemoveBackground(clone, parseInt(bgToleranceEl.value, 10));
     }
 
     if(ignoreWhiteEl.checked){
