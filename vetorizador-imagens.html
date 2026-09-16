@@ -81,13 +81,24 @@ select.ctl{width:100%;background:var(--input-bg);border:1px solid var(--line);bo
 input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 
 .modes{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.seg2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .mode-btn{font-family:'Archivo',sans-serif;font-weight:600;font-size:12.5px;cursor:pointer;
   border-radius:8px;padding:9px 6px;text-align:center;border:1px solid var(--line);
   background:var(--panel-dark);color:var(--text-warm);transition:all .12s;}
 .mode-btn.active{background:var(--accent);border-color:var(--accent);color:var(--text-light);}
+.mode-btn .sh{display:block;font-size:10px;font-family:'IBM Plex Mono',monospace;
+  font-weight:400;opacity:.8;margin-top:2px;text-transform:none;letter-spacing:0;}
 
 .pb-only{display:none;}
 .pb-only.on{display:block;}
+
+.check-row{display:flex;align-items:center;gap:9px;margin-top:14px;cursor:pointer;}
+.check-row input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex:none;}
+.check-row .ctext{font-size:12.5px;color:var(--text-light);font-weight:600;}
+.check-row .ctext .sh{display:block;font-weight:400;color:var(--text-warm);font-size:11px;
+  font-family:'IBM Plex Mono',monospace;margin-top:1px;}
+
+.divider{border:none;border-top:1px solid var(--line);margin:18px 0;}
 
 .btn{font-family:'Archivo',sans-serif;font-weight:600;font-size:14px;cursor:pointer;
   border-radius:8px;border:1px solid transparent;padding:12px 18px;width:100%;
@@ -97,8 +108,9 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 .btn-main:hover{opacity:.92;}
 .btn-main:disabled{opacity:.45;cursor:not-allowed;}
 .btn-ghost{background:transparent;border-color:var(--line);color:var(--text-warm);
-  font-size:12.5px;padding:9px 14px;width:auto;}
+  font-size:12px;padding:8px 12px;width:auto;}
 .btn-ghost:hover{border-color:var(--text-warm);color:var(--text-light);}
+.btn-ghost.on{background:var(--accent);border-color:var(--accent);color:var(--text-light);}
 .btn-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
 .btn-row .btn{width:auto;flex:1;padding:10px 14px;font-size:13px;}
 .btn-row .btn-secondary{background:var(--panel-dark);color:var(--text-light);border-color:var(--line);}
@@ -111,9 +123,21 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 .pane{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:
   repeating-conic-gradient(#6b7a5a 0% 25%, #5e6f4d 0% 50%) 0 0/18px 18px;}
 .pane .lbl{background:var(--panel-dark);color:var(--text-warm);font-family:'IBM Plex Mono',monospace;
-  font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding:6px 10px;}
-.pane .box{min-height:220px;display:flex;align-items:center;justify-content:center;padding:10px;}
-.pane img,.pane svg{max-width:100%;max-height:320px;display:block;}
+  font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding:6px 10px;
+  display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.pane .box{min-height:220px;display:flex;align-items:center;justify-content:center;padding:10px;position:relative;}
+.pane img{max-width:100%;max-height:320px;display:block;}
+.pane .box svg{max-width:100%;max-height:320px;display:block;}
+.pane .box svg path{cursor:default;}
+.pane .box.editing svg path{cursor:pointer;}
+.pane .box.editing svg path:hover{outline:1.5px dashed rgba(181,86,47,.9);outline-offset:1px;}
+.pane .box svg path.geo-selected{outline:2px solid var(--accent);outline-offset:1px;}
+
+.edit-toolbar{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;
+  background:var(--panel-dark);display:none;flex-wrap:wrap;gap:6px;align-items:center;}
+.edit-toolbar.on{display:flex;}
+.edit-toolbar .et-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.08em;color:var(--text-warm);width:100%;margin-bottom:2px;}
 
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px;}
 @media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr);}}
@@ -135,7 +159,7 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);
   background:var(--panel-dark);color:var(--text-light);border:1px solid var(--line);
   border-radius:8px;padding:10px 18px;font-size:13px;font-family:'IBM Plex Mono',monospace;
-  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;}
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:86vw;}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
 </style>
 </head>
@@ -168,8 +192,33 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
       </div>
 
       <div class="card">
-        <h2>2. Ajustes</h2>
-        <p class="sub">Modo e nível de detalhe</p>
+        <h2>2. Pré-processamento</h2>
+        <p class="sub">Ajuste de bitmap, estilo Photoshop, antes de traçar</p>
+
+        <div class="field">
+          <label>Contraste <span class="val" id="contrastVal">0</span></label>
+          <span class="hint">Separa melhor as áreas claras das escuras antes da vetorização</span>
+          <input type="range" id="contrast" min="-100" max="100" value="0" step="1" />
+        </div>
+
+        <div class="field">
+          <label>Brilho <span class="val" id="brightnessVal">0</span></label>
+          <input type="range" id="brightness" min="-100" max="100" value="0" step="1" />
+        </div>
+
+        <button class="btn btn-ghost" id="btnAutoContrast" style="margin-top:12px;width:100%;">Auto-contraste (esticar histograma)</button>
+
+        <label class="check-row">
+          <input type="checkbox" id="ignoreWhite" />
+          <span class="ctext">Ignore White (ignorar branco)
+            <span class="sh">Fundo branco/quase-branco vira transparente no SVG</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="card">
+        <h2>3. Image Trace — parâmetros avançados</h2>
+        <p class="sub">Modo, cor e traçado</p>
 
         <div class="field">
           <label>Modo</label>
@@ -192,22 +241,40 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
           <input type="range" id="threshold" min="10" max="245" value="128" step="1" />
         </div>
 
-        <div class="field">
-          <label>Nível de detalhe <span class="val" id="detailVal">5</span></label>
-          <span class="hint">Baixo = traço simplificado · Alto = mais fiel aos contornos</span>
-          <input type="range" id="detail" min="1" max="10" value="5" step="1" />
+        <hr class="divider" />
+
+        <div class="field" style="margin-top:0;">
+          <label>Paths <span class="val" id="pathsVal">5</span></label>
+          <span class="hint">Ajuste do caminho: baixo = traço simplificado, alto = mais fiel aos contornos</span>
+          <input type="range" id="paths" min="1" max="10" value="5" step="1" />
         </div>
 
         <div class="field">
-          <label>Remover manchas pequenas <span class="val" id="speckVal">8</span>px</label>
-          <span class="hint">Descarta formas menores que isso (limpa ruído)</span>
-          <input type="range" id="speckle" min="0" max="40" value="8" step="1" />
+          <label>Corners</label>
+          <div class="seg2" id="corners">
+            <div class="mode-btn active" data-corners="sharp">Nítidos<span class="sh">ângulos retos realçados</span></div>
+            <div class="mode-btn" data-corners="smooth">Suaves<span class="sh">cantos arredondados</span></div>
+          </div>
         </div>
 
         <div class="field">
-          <label>Suavizar ruído <span class="val" id="blurVal">0</span></label>
+          <label>Noise <span class="val" id="noiseVal">8</span>px</label>
+          <span class="hint">Descarta formas/manchas menores que isso</span>
+          <input type="range" id="noise" min="0" max="40" value="8" step="1" />
+        </div>
+
+        <div class="field">
+          <label>Suavizar ruído (blur) <span class="val" id="blurVal">0</span></label>
           <span class="hint">Reduz granulado antes de vetorizar (fotos escaneadas)</span>
           <input type="range" id="blur" min="0" max="8" value="0" step="1" />
+        </div>
+
+        <div class="field">
+          <label>Method</label>
+          <div class="seg2" id="method">
+            <div class="mode-btn active" data-method="abutting">Abutting<span class="sh">encostar, sem sobra</span></div>
+            <div class="mode-btn" data-method="overlapping">Overlapping<span class="sh">sobrepor, sem frestas</span></div>
+          </div>
         </div>
 
         <button class="btn btn-main" id="btnVectorize" disabled>Vetorizar imagem</button>
@@ -1466,7 +1533,10 @@ if(typeof define === 'function' && define.amd){
     imgd: null,        // ImageData of the (possibly downscaled) source
     resized: false,
     svgString: '',
-    natW: 0, natH: 0
+    natW: 0, natH: 0,
+    autoContrast: null, // {lo, hi} luminance range, or null
+    geoEdit: false,
+    selectedPath: null
   };
 
   var drop = document.getElementById('drop');
@@ -1482,18 +1552,24 @@ if(typeof define === 'function' && define.amd){
   var threshEl = document.getElementById('threshold');
   var threshVal = document.getElementById('threshVal');
   var thresholdField = document.getElementById('thresholdField');
-  var detailEl = document.getElementById('detail');
-  var detailVal = document.getElementById('detailVal');
-  var speckEl = document.getElementById('speckle');
-  var speckVal = document.getElementById('speckVal');
+  var pathsEl = document.getElementById('paths');
+  var pathsVal = document.getElementById('pathsVal');
+  var noiseEl = document.getElementById('noise');
+  var noiseVal = document.getElementById('noiseVal');
   var blurEl = document.getElementById('blur');
   var blurVal = document.getElementById('blurVal');
+  var contrastEl = document.getElementById('contrast');
+  var contrastVal = document.getElementById('contrastVal');
+  var brightnessEl = document.getElementById('brightness');
+  var brightnessVal = document.getElementById('brightnessVal');
+  var ignoreWhiteEl = document.getElementById('ignoreWhite');
+  var btnAutoContrast = document.getElementById('btnAutoContrast');
 
   function toast(msg){
     toastEl.textContent = msg;
     toastEl.classList.add('on');
     clearTimeout(toastEl._t);
-    toastEl._t = setTimeout(function(){ toastEl.classList.remove('on'); }, 2600);
+    toastEl._t = setTimeout(function(){ toastEl.classList.remove('on'); }, 2800);
   }
 
   function fmtBytes(n){
@@ -1502,11 +1578,13 @@ if(typeof define === 'function' && define.amd){
     return (n/(1024*1024)).toFixed(2) + ' MB';
   }
 
+  function clamp255(v){ return v < 0 ? 0 : (v > 255 ? 255 : v); }
+
   // ---- mode switch ----
   document.getElementById('modes').addEventListener('click', function(e){
     var btn = e.target.closest('.mode-btn');
     if(!btn) return;
-    document.querySelectorAll('.mode-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.querySelectorAll('#modes .mode-btn').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
     state.mode = btn.getAttribute('data-mode');
     var isPB = state.mode === 'pb';
@@ -1514,12 +1592,28 @@ if(typeof define === 'function' && define.amd){
     colorsField.style.display = isPB ? 'none' : '';
   });
 
+  document.getElementById('corners').addEventListener('click', function(e){
+    var btn = e.target.closest('.mode-btn');
+    if(!btn) return;
+    document.querySelectorAll('#corners .mode-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  });
+
+  document.getElementById('method').addEventListener('click', function(e){
+    var btn = e.target.closest('.mode-btn');
+    if(!btn) return;
+    document.querySelectorAll('#method .mode-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  });
+
   // ---- sliders live values ----
   colorsEl.addEventListener('input', function(){ colorsVal.textContent = colorsEl.value; });
   threshEl.addEventListener('input', function(){ threshVal.textContent = threshEl.value; });
-  detailEl.addEventListener('input', function(){ detailVal.textContent = detailEl.value; });
-  speckEl.addEventListener('input', function(){ speckVal.textContent = speckEl.value; });
+  pathsEl.addEventListener('input', function(){ pathsVal.textContent = pathsEl.value; });
+  noiseEl.addEventListener('input', function(){ noiseVal.textContent = noiseEl.value; });
   blurEl.addEventListener('input', function(){ blurVal.textContent = blurEl.value; });
+  contrastEl.addEventListener('input', function(){ contrastVal.textContent = contrastEl.value; });
+  brightnessEl.addEventListener('input', function(){ brightnessVal.textContent = brightnessEl.value; });
 
   // ---- drop zone ----
   drop.addEventListener('click', function(e){
@@ -1564,6 +1658,9 @@ if(typeof define === 'function' && define.amd){
   function onImageLoaded(img){
     state.natW = img.naturalWidth;
     state.natH = img.naturalHeight;
+    state.autoContrast = null;
+    btnAutoContrast.classList.remove('on');
+    btnAutoContrast.textContent = 'Auto-contraste (esticar histograma)';
 
     var w = img.naturalWidth, h = img.naturalHeight;
     var scale = Math.min(1, MAX_DIM / Math.max(w, h));
@@ -1598,44 +1695,105 @@ if(typeof define === 'function' && define.amd){
     return { width: imgd.width, height: imgd.height, data: new Uint8ClampedArray(imgd.data) };
   }
 
-  function prepareImageData(){
-    if(state.mode === 'cor') return state.imgd;
+  // ---- pré-processamento (estilo Photoshop: bitmap + brilho/contraste) ----
 
+  btnAutoContrast.addEventListener('click', function(){
+    if(!state.imgd) return;
+    if(state.autoContrast){
+      state.autoContrast = null;
+      btnAutoContrast.classList.remove('on');
+      btnAutoContrast.textContent = 'Auto-contraste (esticar histograma)';
+      toast('Auto-contraste desativado.');
+      return;
+    }
+    var d = state.imgd.data;
+    var lo = 255, hi = 0;
+    for(var i = 0; i < d.length; i += 4){
+      var lum = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+      if(lum < lo) lo = lum;
+      if(lum > hi) hi = lum;
+    }
+    if(hi - lo < 5){ toast('Imagem já usa a faixa de contraste inteira.'); return; }
+    state.autoContrast = { lo: lo, hi: hi };
+    btnAutoContrast.classList.add('on');
+    btnAutoContrast.textContent = 'Auto-contraste ativo (' + Math.round(lo) + '–' + Math.round(hi) + ')';
+    toast('Histograma esticado com base nesta imagem.');
+  });
+
+  function applyAutoStretch(d, lo, hi){
+    var range = Math.max(1, hi - lo);
+    for(var i = 0; i < d.length; i += 4){
+      d[i]   = clamp255((d[i]   - lo) * 255 / range);
+      d[i+1] = clamp255((d[i+1] - lo) * 255 / range);
+      d[i+2] = clamp255((d[i+2] - lo) * 255 / range);
+    }
+  }
+
+  function applyContrastBrightness(d, contrast, brightness){
+    if(contrast === 0 && brightness === 0) return;
+    var factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+    for(var i = 0; i < d.length; i += 4){
+      d[i]   = clamp255(factor * (d[i]   - 128) + 128 + brightness);
+      d[i+1] = clamp255(factor * (d[i+1] - 128) + 128 + brightness);
+      d[i+2] = clamp255(factor * (d[i+2] - 128) + 128 + brightness);
+    }
+  }
+
+  function prepareImageData(){
     var clone = cloneImageData(state.imgd);
     var d = clone.data;
-    if(state.mode === 'cinza'){
+
+    if(state.autoContrast) applyAutoStretch(d, state.autoContrast.lo, state.autoContrast.hi);
+
+    var contrast = parseInt(contrastEl.value, 10);
+    var brightness = parseInt(brightnessEl.value, 10);
+    applyContrastBrightness(d, contrast, brightness);
+
+    if(state.mode === 'cinza' || state.mode === 'pb'){
       for(var i = 0; i < d.length; i += 4){
         var lum = Math.round(0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2]);
         d[i] = d[i+1] = d[i+2] = lum;
       }
-    } else if(state.mode === 'pb'){
+    }
+    if(state.mode === 'pb'){
       var th = parseInt(threshEl.value, 10);
       for(var j = 0; j < d.length; j += 4){
-        var l = 0.299*d[j] + 0.587*d[j+1] + 0.114*d[j+2];
-        var v = l >= th ? 255 : 0;
+        var v = d[j] >= th ? 255 : 0;
         d[j] = d[j+1] = d[j+2] = v;
       }
     }
+
+    if(ignoreWhiteEl.checked){
+      for(var k = 0; k < d.length; k += 4){
+        if(d[k] >= 248 && d[k+1] >= 248 && d[k+2] >= 248) d[k+3] = 0;
+      }
+    }
+
     return clone;
   }
 
+  // ---- Image Trace: opções avançadas ----
+
   function buildOptions(){
-    var detail = parseInt(detailEl.value, 10);           // 1..10, higher = more detail
-    var t = 11 - detail;                                  // 1..10, higher = simpler
+    var pathsLevel = parseInt(pathsEl.value, 10);      // 1..10, higher = more detail
+    var t = 11 - pathsLevel;
     var ltres = Math.max(0.15, t * 0.25);
     var qtres = ltres;
+
+    var cornersMode = document.querySelector('#corners .mode-btn.active').getAttribute('data-corners');
+    var methodMode = document.querySelector('#method .mode-btn.active').getAttribute('data-method');
 
     var opts = {
       ltres: ltres,
       qtres: qtres,
-      pathomit: parseInt(speckEl.value, 10),
-      rightangleenhance: true,
+      pathomit: parseInt(noiseEl.value, 10),
+      rightangleenhance: cornersMode === 'sharp',
+      linefilter: cornersMode === 'smooth',
       colorsampling: 2,
       colorquantcycles: 3,
       mincolorratio: 0,
-      layering: 0,
+      layering: methodMode === 'overlapping' ? 1 : 0,
       strokewidth: 1,
-      linefilter: false,
       scale: 1,
       roundcoords: 1,
       viewbox: true,
@@ -1664,7 +1822,6 @@ if(typeof define === 'function' && define.amd){
         var imgd = prepareImageData();
         var opts = buildOptions();
         var svg = ImageTracer.imagedataToSVG(imgd, opts);
-        state.svgString = svg;
         renderResult(svg);
       }catch(err){
         resultArea.innerHTML = '<div class="result-empty">Não deu para vetorizar essa imagem (' + escHtml(err.message || String(err)) + '). Tente reduzir o número de cores ou o detalhe.</div>';
@@ -1676,38 +1833,357 @@ if(typeof define === 'function' && define.amd){
     }, 30);
   });
 
-  function renderResult(svg){
-    var pathCount = (svg.match(/<path /g) || []).length;
+  // ---- 3. Limpeza e otimização da malha vetorial ----
+  // Consecutive <path> elements sharing fill/stroke are already emitted back-to-back
+  // by imagetracer's color loop, so a same-style run can be merged into one <path>
+  // with multiple subpaths, without changing paint order.
+  function optimizeSVG(svgString){
+    var doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
+    var svg = doc.documentElement;
+    var pathList = Array.prototype.slice.call(svg.querySelectorAll('path'));
+    var beforeCount = pathList.length;
+    var merged = [];
+
+    pathList.forEach(function(p){
+      var d = (p.getAttribute('d') || '').trim();
+      if(!d){ p.parentNode.removeChild(p); return; }
+      var fill = p.getAttribute('fill') || '';
+      var stroke = p.getAttribute('stroke') || '';
+      var sw = p.getAttribute('stroke-width') || '';
+      var op = p.getAttribute('opacity') || '';
+      var last = merged[merged.length - 1];
+      if(last && last.fill === fill && last.stroke === stroke && last.sw === sw && last.op === op){
+        last.d.push(d);
+        p.parentNode.removeChild(p);
+      } else {
+        merged.push({ fill: fill, stroke: stroke, sw: sw, op: op, d: [d], el: p });
+      }
+    });
+
+    merged.forEach(function(g){
+      g.el.setAttribute('d', g.d.join(' '));
+      // A fully (or near-)transparent shape — typically the "Ignore White"
+      // background — must not sit on top intercepting clicks meant for the
+      // visible shapes underneath it in geometric-edit mode.
+      if(g.op !== '' && parseFloat(g.op) < 0.05) g.el.setAttribute('pointer-events', 'none');
+    });
+
+    return { svg: new XMLSerializer().serializeToString(svg), before: beforeCount, after: merged.length };
+  }
+
+  function renderResult(rawSvg){
+    var opt = optimizeSVG(rawSvg);
+    state.svgString = opt.svg;
+    state.geoEdit = false;
+    state.selectedPath = null;
+
     var fills = {};
     var fillRe = /fill="(#[0-9a-fA-F]{6}|rgba?\([^)]*\))"/g, m;
-    while((m = fillRe.exec(svg))) fills[m[1]] = true;
+    while((m = fillRe.exec(opt.svg))) fills[m[1]] = true;
     var colorCount = Object.keys(fills).length;
-    var svgBytes = new Blob([svg]).size;
+    var svgBytes = new Blob([opt.svg]).size;
     var origBytes = state.fileSize;
     var deltaPct = origBytes ? Math.round((1 - svgBytes/origBytes) * 100) : 0;
 
     var html = '';
     html += '<div class="compare">';
-    html += '  <div class="pane"><div class="lbl">Original</div><div class="box"><img src="' + state.origDataURL + '" alt="Original" /></div></div>';
-    html += '  <div class="pane"><div class="lbl">Vetor (SVG)</div><div class="box" id="svgBox"></div></div>';
+    html += '  <div class="pane"><div class="lbl"><span>Original</span></div><div class="box"><img src="' + state.origDataURL + '" alt="Original" /></div></div>';
+    html += '  <div class="pane"><div class="lbl"><span>Vetor (SVG)</span></div><div class="box" id="svgBox"></div></div>';
     html += '</div>';
     html += '<div class="stats">';
-    html += '  <div class="stat"><span class="num">' + pathCount + '</span><span class="lbl">Formas</span></div>';
+    html += '  <div class="stat"><span class="num">' + opt.after + '</span><span class="lbl">Formas</span></div>';
     html += '  <div class="stat"><span class="num">' + colorCount + '</span><span class="lbl">Cores</span></div>';
     html += '  <div class="stat"><span class="num">' + fmtBytes(svgBytes) + '</span><span class="lbl">Tamanho SVG</span></div>';
     html += '  <div class="stat"><span class="num">' + (deltaPct > 0 ? '-' + deltaPct + '%' : deltaPct + '%') + '</span><span class="lbl">vs. original</span></div>';
     html += '</div>';
+    html += '<p style="margin:10px 0 0;font-size:11px;color:var(--text-warm);font-family:\'IBM Plex Mono\',monospace;">Malha otimizada: ' + opt.before + ' → ' + opt.after + ' formas (traçados da mesma cor mesclados)</p>';
     html += '<div class="btn-row">';
     html += '  <button class="btn btn-secondary" id="btnDownload">Baixar SVG</button>';
     html += '  <button class="btn btn-secondary" id="btnCopy">Copiar código SVG</button>';
+    html += '  <button class="btn btn-ghost" id="btnGeoToggle" style="flex:1 1 100%;">Modo edição geométrica (ajustar formas para retângulo/círculo/triângulo)</button>';
+    html += '</div>';
+    html += '<div class="edit-toolbar" id="geoToolbar">';
+    html += '  <span class="et-label">Forma selecionada — 4. vetorização manual / 5. simplificar para forma base:</span>';
+    html += '  <button class="btn btn-ghost" id="geoAuto">Auto</button>';
+    html += '  <button class="btn btn-ghost" id="geoRect">Retângulo</button>';
+    html += '  <button class="btn btn-ghost" id="geoCircle">Círculo</button>';
+    html += '  <button class="btn btn-ghost" id="geoTriangle">Triângulo</button>';
+    html += '  <button class="btn btn-ghost" id="geoRevert">Reverter</button>';
+    html += '  <button class="btn btn-ghost" id="geoDeselect">Fechar</button>';
     html += '</div>';
 
     resultArea.innerHTML = html;
-    document.getElementById('svgBox').innerHTML = svg;
-
-    document.getElementById('btnDownload').addEventListener('click', downloadSVG);
-    document.getElementById('btnCopy').addEventListener('click', copySVG);
+    document.getElementById('svgBox').innerHTML = opt.svg;
   }
+
+  // ---- 4 & 5. Vetorização manual / simplificação para formas base ----
+
+  function samplePathPoints(pathEl){
+    var len = pathEl.getTotalLength();
+    if(!len) return [];
+    var steps = 120;
+    var pts = [];
+    for(var i = 0; i < steps; i++){
+      var p = pathEl.getPointAtLength(len * i / steps);
+      pts.push([p.x, p.y]);
+    }
+    return pts;
+  }
+
+  function centroidOf(pts){
+    var x = 0, y = 0;
+    pts.forEach(function(p){ x += p[0]; y += p[1]; });
+    return [x / pts.length, y / pts.length];
+  }
+
+  function convexHull(pts){
+    var points = pts.slice().sort(function(a,b){ return a[0]-b[0] || a[1]-b[1]; });
+    function cross(o,a,b){ return (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]); }
+    var lower = [];
+    for(var i = 0; i < points.length; i++){
+      while(lower.length >= 2 && cross(lower[lower.length-2], lower[lower.length-1], points[i]) <= 0) lower.pop();
+      lower.push(points[i]);
+    }
+    var upper = [];
+    for(var j = points.length - 1; j >= 0; j--){
+      while(upper.length >= 2 && cross(upper[upper.length-2], upper[upper.length-1], points[j]) <= 0) upper.pop();
+      upper.push(points[j]);
+    }
+    lower.pop(); upper.pop();
+    var hull = lower.concat(upper);
+    return hull.length >= 3 ? hull : points;
+  }
+
+  function polygonArea(pts){
+    var a = 0;
+    for(var i = 0; i < pts.length; i++){
+      var p1 = pts[i], p2 = pts[(i+1) % pts.length];
+      a += p1[0]*p2[1] - p2[0]*p1[1];
+    }
+    return Math.abs(a) / 2;
+  }
+
+  function polygonPerimeter(pts){
+    var p = 0;
+    for(var i = 0; i < pts.length; i++){
+      var p1 = pts[i], p2 = pts[(i+1) % pts.length];
+      p += Math.hypot(p2[0]-p1[0], p2[1]-p1[1]);
+    }
+    return p;
+  }
+
+  function axisAlignedRectPts(pts){
+    var minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+    pts.forEach(function(p){
+      if(p[0]<minX)minX=p[0]; if(p[0]>maxX)maxX=p[0];
+      if(p[1]<minY)minY=p[1]; if(p[1]>maxY)maxY=p[1];
+    });
+    return [[minX,minY],[maxX,minY],[maxX,maxY],[minX,maxY]];
+  }
+
+  // Minimum-area bounding rectangle via rotating calipers over the convex hull
+  function minAreaRect(hull){
+    if(hull.length < 3) return axisAlignedRectPts(hull);
+    var best = null;
+    for(var i = 0; i < hull.length; i++){
+      var p1 = hull[i], p2 = hull[(i+1) % hull.length];
+      var edgeAngle = Math.atan2(p2[1]-p1[1], p2[0]-p1[0]);
+      var cos = Math.cos(-edgeAngle), sin = Math.sin(-edgeAngle);
+      var minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+      for(var j = 0; j < hull.length; j++){
+        var x = hull[j][0]*cos - hull[j][1]*sin;
+        var y = hull[j][0]*sin + hull[j][1]*cos;
+        if(x<minX)minX=x; if(x>maxX)maxX=x;
+        if(y<minY)minY=y; if(y>maxY)maxY=y;
+      }
+      var area = (maxX-minX) * (maxY-minY);
+      if(!best || area < best.area) best = { area:area, minX:minX,maxX:maxX,minY:minY,maxY:maxY, angle:edgeAngle };
+    }
+    var cos2 = Math.cos(best.angle), sin2 = Math.sin(best.angle);
+    function rot(x,y){ return [x*cos2 - y*sin2, x*sin2 + y*cos2]; }
+    return [
+      rot(best.minX, best.minY),
+      rot(best.maxX, best.minY),
+      rot(best.maxX, best.maxY),
+      rot(best.minX, best.maxY)
+    ];
+  }
+
+  // Approximate minimum enclosing circle (Ritter's algorithm)
+  function enclosingCircle(pts){
+    var c = centroidOf(pts);
+    var r = 0;
+    pts.forEach(function(p){ r = Math.max(r, Math.hypot(p[0]-c[0], p[1]-c[1])); });
+    for(var pass = 0; pass < 3; pass++){
+      pts.forEach(function(p){
+        var d = Math.hypot(p[0]-c[0], p[1]-c[1]);
+        if(d > r){
+          var newR = (r + d) / 2;
+          var k = (d - newR) / d;
+          c = [c[0] + (p[0]-c[0])*k, c[1] + (p[1]-c[1])*k];
+          r = newR;
+        }
+      });
+    }
+    return { c: c, r: r };
+  }
+
+  // Simplify the hull down to a triangle, dropping the vertex whose removal
+  // loses the least area at each step (Visvalingam-Whyatt style)
+  function fitTriangleHull(hull){
+    var poly = hull.slice();
+    while(poly.length > 3){
+      var minLoss = Infinity, minIdx = 0;
+      for(var i = 0; i < poly.length; i++){
+        var a = poly[(i-1+poly.length) % poly.length], b = poly[i], c = poly[(i+1) % poly.length];
+        var loss = Math.abs((b[0]-a[0])*(c[1]-a[1]) - (c[0]-a[0])*(b[1]-a[1])) / 2;
+        if(loss < minLoss){ minLoss = loss; minIdx = i; }
+      }
+      poly.splice(minIdx, 1);
+    }
+    return poly;
+  }
+
+  function ptsToPathD(pts){
+    if(!pts.length) return '';
+    var d = 'M' + pts[0][0].toFixed(2) + ',' + pts[0][1].toFixed(2);
+    for(var i = 1; i < pts.length; i++) d += 'L' + pts[i][0].toFixed(2) + ',' + pts[i][1].toFixed(2);
+    return d + 'Z';
+  }
+
+  function circleToPathD(c, r){
+    var x = c[0], y = c[1];
+    return 'M' + (x-r).toFixed(2) + ',' + y.toFixed(2) +
+      'A' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 1,0 ' + (x+r).toFixed(2) + ',' + y.toFixed(2) +
+      'A' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 1,0 ' + (x-r).toFixed(2) + ',' + y.toFixed(2) + 'Z';
+  }
+
+  function toggleGeoEdit(){
+    state.geoEdit = !state.geoEdit;
+    var box = document.getElementById('svgBox');
+    var btn = document.getElementById('btnGeoToggle');
+    if(box) box.classList.toggle('editing', state.geoEdit);
+    if(btn){
+      btn.classList.toggle('on', state.geoEdit);
+      btn.textContent = state.geoEdit
+        ? 'Sair do modo edição geométrica'
+        : 'Modo edição geométrica (ajustar formas para retângulo/círculo/triângulo)';
+    }
+    if(state.geoEdit) toast('Clique numa forma do vetor para ajustá-la.');
+    else geoDeselect();
+  }
+
+  function selectGeoPath(pathEl){
+    if(state.selectedPath) state.selectedPath.classList.remove('geo-selected');
+    state.selectedPath = pathEl;
+    pathEl.classList.add('geo-selected');
+    if(!pathEl.getAttribute('data-orig-d')) pathEl.setAttribute('data-orig-d', pathEl.getAttribute('d'));
+    var toolbar = document.getElementById('geoToolbar');
+    if(toolbar) toolbar.classList.add('on');
+  }
+
+  function geoDeselect(){
+    if(state.selectedPath) state.selectedPath.classList.remove('geo-selected');
+    state.selectedPath = null;
+    var toolbar = document.getElementById('geoToolbar');
+    if(toolbar) toolbar.classList.remove('on');
+  }
+
+  function geoRevertSelected(){
+    if(!state.selectedPath) return;
+    var orig = state.selectedPath.getAttribute('data-orig-d');
+    if(orig) state.selectedPath.setAttribute('d', orig);
+    toast('Forma revertida ao traçado original.');
+  }
+
+  function geoApplyRect(){
+    if(!state.selectedPath) return;
+    var pts = samplePathPoints(state.selectedPath);
+    if(pts.length < 3) return;
+    var rectPts = minAreaRect(convexHull(pts));
+    state.selectedPath.setAttribute('d', ptsToPathD(rectPts));
+    toast('Forma ajustada para retângulo.');
+  }
+
+  function geoApplyCircle(){
+    if(!state.selectedPath) return;
+    var pts = samplePathPoints(state.selectedPath);
+    if(pts.length < 3) return;
+    var circ = enclosingCircle(pts);
+    state.selectedPath.setAttribute('d', circleToPathD(circ.c, circ.r));
+    toast('Forma ajustada para círculo.');
+  }
+
+  function geoApplyTriangle(){
+    if(!state.selectedPath) return;
+    var pts = samplePathPoints(state.selectedPath);
+    if(pts.length < 3) return;
+    var tri = fitTriangleHull(convexHull(pts));
+    state.selectedPath.setAttribute('d', ptsToPathD(tri));
+    toast('Forma ajustada para triângulo.');
+  }
+
+  function geoApplyAuto(){
+    if(!state.selectedPath) return;
+    var pts = samplePathPoints(state.selectedPath);
+    if(pts.length < 3) return;
+    var hull = convexHull(pts);
+    var area = polygonArea(hull);
+    var perim = polygonPerimeter(hull);
+    var circularity = perim > 0 ? (4*Math.PI*area) / (perim*perim) : 0;
+
+    var rectPts = minAreaRect(hull);
+    var rectArea = polygonArea(rectPts);
+    var rectangularity = rectArea > 0 ? Math.min(area/rectArea, rectArea/Math.max(area,1e-6)) : 0;
+
+    // fitTriangleHull only ever drops hull vertices, so the resulting triangle
+    // is inscribed in the hull (triArea <= area) — ratio this way round so it
+    // stays bounded in [0,1] and only peaks for shapes that are already
+    // triangular (where the hull reduces to ~3 points with no area loss).
+    var tri = fitTriangleHull(hull);
+    var triArea = polygonArea(tri);
+    var triangularity = area > 0 ? triArea / area : 0;
+
+    var scores = [
+      { shape:'circle', score: circularity },
+      { shape:'rect', score: rectangularity },
+      { shape:'triangle', score: triangularity }
+    ].sort(function(a,b){ return b.score - a.score; });
+
+    var best = scores[0];
+    var label;
+    if(best.shape === 'circle'){
+      var c = enclosingCircle(pts);
+      state.selectedPath.setAttribute('d', circleToPathD(c.c, c.r));
+      label = 'círculo';
+    } else if(best.shape === 'rect'){
+      state.selectedPath.setAttribute('d', ptsToPathD(rectPts));
+      label = 'retângulo';
+    } else {
+      state.selectedPath.setAttribute('d', ptsToPathD(tri));
+      label = 'triângulo';
+    }
+    toast('Auto: forma detectada como ' + label + ' (confiança ' + Math.round(Math.min(best.score,1)*100) + '%).');
+  }
+
+  // Delegated click handling: resultArea itself is never replaced, only its
+  // innerHTML, so this single listener keeps working across re-renders.
+  resultArea.addEventListener('click', function(e){
+    var t = e.target;
+    if(t.closest('#btnDownload')){ downloadSVG(); return; }
+    if(t.closest('#btnCopy')){ copySVG(); return; }
+    if(t.closest('#btnGeoToggle')){ toggleGeoEdit(); return; }
+    if(t.closest('#geoAuto')){ geoApplyAuto(); return; }
+    if(t.closest('#geoRect')){ geoApplyRect(); return; }
+    if(t.closest('#geoCircle')){ geoApplyCircle(); return; }
+    if(t.closest('#geoTriangle')){ geoApplyTriangle(); return; }
+    if(t.closest('#geoRevert')){ geoRevertSelected(); return; }
+    if(t.closest('#geoDeselect')){ geoDeselect(); return; }
+
+    if(state.geoEdit && t.tagName && t.tagName.toLowerCase() === 'path' && t.closest('#svgBox')){
+      selectGeoPath(t);
+    }
+  });
 
   function baseName(){
     var n = state.fileName || 'imagem';
