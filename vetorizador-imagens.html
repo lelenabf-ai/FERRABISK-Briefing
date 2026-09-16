@@ -7,7 +7,7 @@
 <meta name="description" content="Converta imagens (PNG, JPG, WEBP) em vetor SVG direto no navegador, sem enviar nada para servidor." />
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap');
 
 :root{
   --bg:#4c5a3e;
@@ -22,36 +22,42 @@
   --cafe:#332420;
   --line:rgba(244,238,227,.16);
   --line-soft:rgba(244,238,227,.08);
+  --font-head:'Bricolage Grotesque',sans-serif;
+  --font-body:'Poppins',system-ui,sans-serif;
 }
 
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
 body{
   background:var(--bg); color:var(--text-light);
-  font-family:'Inter',system-ui,sans-serif; line-height:1.55;
+  font-family:var(--font-body); line-height:1.55;
   min-height:100vh;
 }
-.wrap{max-width:1180px;margin:0 auto;padding:34px 20px 60px;}
+.wrap{max-width:1220px;margin:0 auto;padding:34px 20px 60px;}
 
-.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.22em;
+.eyebrow{font-family:var(--font-body);font-weight:600;font-size:11px;letter-spacing:.22em;
   text-transform:uppercase;color:var(--text-warm);}
 .head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;
   flex-wrap:wrap;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--line);}
-.head h1{font-family:'Archivo',sans-serif;font-weight:800;font-size:30px;line-height:1.08;
+.head h1{font-family:var(--font-head);font-weight:800;font-size:31px;line-height:1.08;
   margin:8px 0 6px;color:var(--text-light);}
 .head p{margin:0;color:var(--text-warm);font-size:14px;max-width:520px;}
-.stamp{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-warm);
+.stamp{font-family:var(--font-body);font-weight:500;font-size:11px;color:var(--text-warm);
   text-align:right;line-height:1.5;}
 .stamp a{color:var(--text-light);}
 
-.grid{display:grid;grid-template-columns:380px 1fr;gap:22px;align-items:start;}
-@media (max-width:880px){.grid{grid-template-columns:1fr;}}
+.grid{display:grid;grid-template-columns:430px 1fr;gap:22px;align-items:start;}
+@media (max-width:960px){.grid{grid-template-columns:1fr;}}
+
+.controls-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;}
+@media (max-width:640px){.controls-row{grid-template-columns:1fr;}}
+@media (max-width:960px) and (min-width:641px){.controls-row{grid-template-columns:1fr 1fr;}}
 
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
   padding:22px 22px 24px;box-shadow:0 6px 20px rgba(0,0,0,.18);margin-bottom:20px;}
-.card h2{font-family:'Archivo',sans-serif;font-weight:700;font-size:16px;
+.card h2{font-family:var(--font-head);font-weight:700;font-size:17px;
   letter-spacing:-.01em;margin:0 0 4px;color:var(--text-light);}
-.card .sub{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;
+.card .sub{font-family:var(--font-body);font-weight:500;font-size:11px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--text-warm);margin:0 0 16px;}
 
 .drop{border:2px dashed var(--line);border-radius:10px;padding:28px 16px;text-align:center;
@@ -59,21 +65,25 @@ body{
 .drop:hover,.drop.drag{border-color:var(--accent);background:rgba(181,86,47,.12);}
 .drop svg{width:30px;height:30px;margin:0 auto 10px;display:block;opacity:.85;}
 .drop .t1{font-weight:600;font-size:14px;color:var(--text-light);}
-.drop .t2{font-size:12px;color:var(--text-warm);margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+.drop .t2{font-size:12px;color:var(--text-warm);margin-top:4px;font-family:var(--font-body);}
 .drop input{display:none;}
 
-.filemeta{margin-top:14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;
+.filemeta{margin-top:14px;font-family:var(--font-body);font-size:11.5px;
   color:var(--text-warm);display:none;line-height:1.7;}
 .filemeta.on{display:block;}
 .filemeta b{color:var(--text-light);}
 .filemeta .warn-note{color:#e8c07a;}
 
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media (max-width:480px){.field-row{grid-template-columns:1fr;}}
+
 .field{margin:16px 0 0;}
+.field-row .field{margin-top:0;}
 .field label{display:flex;justify-content:space-between;align-items:baseline;
-  font-size:12.5px;font-weight:600;color:var(--text-light);margin-bottom:6px;}
-.field label .val{font-family:'IBM Plex Mono',monospace;font-weight:400;color:var(--text-warm);}
+  font-size:12.5px;font-weight:600;color:var(--text-light);margin-bottom:6px;gap:8px;}
+.field label .val{font-family:var(--font-body);font-weight:500;color:var(--text-warm);}
 .field .hint{display:block;font-size:11px;color:var(--text-warm);margin:-2px 0 7px;
-  font-family:'IBM Plex Mono',monospace;opacity:.85;}
+  font-family:var(--font-body);opacity:.85;}
 
 select.ctl{width:100%;background:var(--input-bg);border:1px solid var(--line);border-radius:8px;
   padding:10px 12px;font-family:inherit;font-size:13.5px;color:var(--input-text);cursor:pointer;}
@@ -82,11 +92,11 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 
 .modes{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
 .seg2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.mode-btn{font-family:'Archivo',sans-serif;font-weight:600;font-size:12.5px;cursor:pointer;
+.mode-btn{font-family:var(--font-body);font-weight:600;font-size:12.5px;cursor:pointer;
   border-radius:8px;padding:9px 6px;text-align:center;border:1px solid var(--line);
   background:var(--panel-dark);color:var(--text-warm);transition:all .12s;}
 .mode-btn.active{background:var(--accent);border-color:var(--accent);color:var(--text-light);}
-.mode-btn .sh{display:block;font-size:10px;font-family:'IBM Plex Mono',monospace;
+.mode-btn .sh{display:block;font-size:10px;font-family:var(--font-body);
   font-weight:400;opacity:.8;margin-top:2px;text-transform:none;letter-spacing:0;}
 
 .pb-only{display:none;}
@@ -94,13 +104,13 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 
 .check-row{display:flex;align-items:center;gap:9px;margin-top:14px;cursor:pointer;}
 .check-row input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex:none;}
-.check-row .ctext{font-size:12.5px;color:var(--text-light);font-weight:600;}
+.check-row .ctext{font-size:12.5px;color:var(--text-light);font-weight:600;font-family:var(--font-body);}
 .check-row .ctext .sh{display:block;font-weight:400;color:var(--text-warm);font-size:11px;
-  font-family:'IBM Plex Mono',monospace;margin-top:1px;}
+  font-family:var(--font-body);margin-top:1px;}
 
 .divider{border:none;border-top:1px solid var(--line);margin:18px 0;}
 
-.btn{font-family:'Archivo',sans-serif;font-weight:600;font-size:14px;cursor:pointer;
+.btn{font-family:var(--font-body);font-weight:600;font-size:14px;cursor:pointer;
   border-radius:8px;border:1px solid transparent;padding:12px 18px;width:100%;
   transition:transform .1s,opacity .15s;}
 .btn:active{transform:translateY(1px);}
@@ -116,14 +126,14 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 .btn-row .btn-secondary{background:var(--panel-dark);color:var(--text-light);border-color:var(--line);}
 
 .result-empty{color:var(--text-warm);font-size:13.5px;text-align:center;padding:60px 20px;
-  border:1px dashed var(--line);border-radius:10px;font-family:'IBM Plex Mono',monospace;}
+  border:1px dashed var(--line);border-radius:10px;font-family:var(--font-body);}
 
 .compare{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 @media (max-width:560px){.compare{grid-template-columns:1fr;}}
 .pane{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:
   repeating-conic-gradient(#6b7a5a 0% 25%, #5e6f4d 0% 50%) 0 0/18px 18px;}
-.pane .lbl{background:var(--panel-dark);color:var(--text-warm);font-family:'IBM Plex Mono',monospace;
-  font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding:6px 10px;
+.pane .lbl{background:var(--panel-dark);color:var(--text-warm);font-family:var(--font-body);
+  font-weight:500;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding:6px 10px;
   display:flex;justify-content:space-between;align-items:center;gap:8px;}
 .pane .box{min-height:220px;display:flex;align-items:center;justify-content:center;padding:10px;position:relative;}
 .pane img{max-width:100%;max-height:320px;display:block;}
@@ -136,29 +146,31 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 .edit-toolbar{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;
   background:var(--panel-dark);display:none;flex-wrap:wrap;gap:6px;align-items:center;}
 .edit-toolbar.on{display:flex;}
-.edit-toolbar .et-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+.edit-toolbar .et-label{font-family:var(--font-body);font-weight:500;font-size:10.5px;
   text-transform:uppercase;letter-spacing:.08em;color:var(--text-warm);width:100%;margin-bottom:2px;}
 
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px;}
 @media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr);}}
 .stat{background:var(--panel-dark);border:1px solid var(--line);border-radius:10px;
   padding:12px 10px;text-align:center;}
-.stat .num{display:block;font-family:'Archivo',sans-serif;font-weight:700;font-size:19px;
+.stat .num{display:block;font-family:var(--font-body);font-weight:700;font-size:19px;
   color:var(--text-light);line-height:1;}
-.stat .lbl{display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;
+.stat .lbl{display:block;font-family:var(--font-body);font-weight:500;font-size:9.5px;
   letter-spacing:.07em;text-transform:uppercase;color:var(--text-warm);margin-top:6px;}
 
-.priv{font-size:11.5px;color:var(--text-warm);font-family:'IBM Plex Mono',monospace;
+.mesh-note{margin:10px 0 0;font-size:11px;color:var(--text-warm);font-family:var(--font-body);}
+
+.priv{font-size:11.5px;color:var(--text-warm);font-family:var(--font-body);
   text-align:center;margin-top:30px;opacity:.8;}
 .spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);
   border-radius:50%;margin:0 auto 14px;animation:rot .8s linear infinite;}
 @keyframes rot{to{transform:rotate(360deg);}}
 .loading{text-align:center;padding:60px 20px;color:var(--text-warm);font-size:13px;
-  font-family:'IBM Plex Mono',monospace;}
+  font-family:var(--font-body);}
 
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);
   background:var(--panel-dark);color:var(--text-light);border:1px solid var(--line);
-  border-radius:8px;padding:10px 18px;font-size:13px;font-family:'IBM Plex Mono',monospace;
+  border-radius:8px;padding:10px 18px;font-size:13px;font-family:var(--font-body);font-weight:500;
   opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:86vw;}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
 </style>
@@ -191,90 +203,99 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
         <div class="filemeta" id="fileMeta"></div>
       </div>
 
-      <div class="card">
-        <h2>2. Pré-processamento</h2>
-        <p class="sub">Ajuste de bitmap, estilo Photoshop, antes de traçar</p>
+      <div class="controls-row">
+        <div class="card">
+          <h2>2. Pré-processamento</h2>
+          <p class="sub">Ajuste de bitmap, estilo Photoshop</p>
 
-        <div class="field">
-          <label>Contraste <span class="val" id="contrastVal">0</span></label>
-          <span class="hint">Separa melhor as áreas claras das escuras antes da vetorização</span>
-          <input type="range" id="contrast" min="-100" max="100" value="0" step="1" />
+          <div class="field-row">
+            <div class="field">
+              <label>Contraste <span class="val" id="contrastVal">0</span></label>
+              <span class="hint">Separa claros de escuros</span>
+              <input type="range" id="contrast" min="-100" max="100" value="0" step="1" />
+            </div>
+            <div class="field">
+              <label>Brilho <span class="val" id="brightnessVal">0</span></label>
+              <span class="hint">Clareia ou escurece tudo</span>
+              <input type="range" id="brightness" min="-100" max="100" value="0" step="1" />
+            </div>
+          </div>
+
+          <button class="btn btn-ghost" id="btnAutoContrast" style="margin-top:16px;width:100%;">Auto-contraste (esticar histograma)</button>
+
+          <label class="check-row">
+            <input type="checkbox" id="ignoreWhite" />
+            <span class="ctext">Ignore White (ignorar branco)
+              <span class="sh">Fundo branco/quase-branco vira transparente no SVG</span>
+            </span>
+          </label>
         </div>
 
-        <div class="field">
-          <label>Brilho <span class="val" id="brightnessVal">0</span></label>
-          <input type="range" id="brightness" min="-100" max="100" value="0" step="1" />
+        <div class="card">
+          <h2>3. Image Trace</h2>
+          <p class="sub">Modo e cor</p>
+
+          <div class="field" style="margin-top:0;">
+            <label>Modo</label>
+            <div class="modes" id="modes">
+              <div class="mode-btn active" data-mode="cor">Colorido</div>
+              <div class="mode-btn" data-mode="cinza">Cinza</div>
+              <div class="mode-btn" data-mode="pb">P&amp;B</div>
+            </div>
+          </div>
+
+          <div class="field" id="colorsField">
+            <label>Número de cores <span class="val" id="colorsVal">12</span></label>
+            <span class="hint">Mais cores = mais fiel, arquivo maior</span>
+            <input type="range" id="colors" min="2" max="32" value="12" step="1" />
+          </div>
+
+          <div class="field pb-only" id="thresholdField">
+            <label>Limiar preto/branco <span class="val" id="threshVal">128</span></label>
+            <span class="hint">Move a linha entre preto e branco</span>
+            <input type="range" id="threshold" min="10" max="245" value="128" step="1" />
+          </div>
         </div>
-
-        <button class="btn btn-ghost" id="btnAutoContrast" style="margin-top:12px;width:100%;">Auto-contraste (esticar histograma)</button>
-
-        <label class="check-row">
-          <input type="checkbox" id="ignoreWhite" />
-          <span class="ctext">Ignore White (ignorar branco)
-            <span class="sh">Fundo branco/quase-branco vira transparente no SVG</span>
-          </span>
-        </label>
       </div>
 
       <div class="card">
-        <h2>3. Image Trace — parâmetros avançados</h2>
-        <p class="sub">Modo, cor e traçado</p>
+        <h2>Parâmetros avançados</h2>
+        <p class="sub">Traçado — estilo painel Image Trace</p>
 
-        <div class="field">
-          <label>Modo</label>
-          <div class="modes" id="modes">
-            <div class="mode-btn active" data-mode="cor">Colorido</div>
-            <div class="mode-btn" data-mode="cinza">Cinza</div>
-            <div class="mode-btn" data-mode="pb">P&amp;B</div>
+        <div class="field-row">
+          <div class="field" style="margin-top:0;">
+            <label>Paths <span class="val" id="pathsVal">5</span></label>
+            <span class="hint">Ajuste do caminho às curvas</span>
+            <input type="range" id="paths" min="1" max="10" value="5" step="1" />
+          </div>
+          <div class="field" style="margin-top:0;">
+            <label>Noise <span class="val" id="noiseVal">8</span>px</label>
+            <span class="hint">Descarta manchas pequenas</span>
+            <input type="range" id="noise" min="0" max="40" value="8" step="1" />
           </div>
         </div>
 
-        <div class="field" id="colorsField">
-          <label>Número de cores <span class="val" id="colorsVal">12</span></label>
-          <span class="hint">Mais cores = mais fiel, arquivo maior</span>
-          <input type="range" id="colors" min="2" max="32" value="12" step="1" />
-        </div>
-
-        <div class="field pb-only" id="thresholdField">
-          <label>Limiar preto/branco <span class="val" id="threshVal">128</span></label>
-          <span class="hint">Move a linha entre o que vira preto e o que vira branco</span>
-          <input type="range" id="threshold" min="10" max="245" value="128" step="1" />
-        </div>
-
-        <hr class="divider" />
-
-        <div class="field" style="margin-top:0;">
-          <label>Paths <span class="val" id="pathsVal">5</span></label>
-          <span class="hint">Ajuste do caminho: baixo = traço simplificado, alto = mais fiel aos contornos</span>
-          <input type="range" id="paths" min="1" max="10" value="5" step="1" />
-        </div>
-
-        <div class="field">
-          <label>Corners</label>
-          <div class="seg2" id="corners">
-            <div class="mode-btn active" data-corners="sharp">Nítidos<span class="sh">ângulos retos realçados</span></div>
-            <div class="mode-btn" data-corners="smooth">Suaves<span class="sh">cantos arredondados</span></div>
+        <div class="field-row" style="margin-top:16px;">
+          <div class="field" style="margin-top:0;">
+            <label>Corners</label>
+            <div class="seg2" id="corners">
+              <div class="mode-btn active" data-corners="sharp">Nítidos<span class="sh">ângulos retos</span></div>
+              <div class="mode-btn" data-corners="smooth">Suaves<span class="sh">cantos arredondados</span></div>
+            </div>
           </div>
-        </div>
-
-        <div class="field">
-          <label>Noise <span class="val" id="noiseVal">8</span>px</label>
-          <span class="hint">Descarta formas/manchas menores que isso</span>
-          <input type="range" id="noise" min="0" max="40" value="8" step="1" />
+          <div class="field" style="margin-top:0;">
+            <label>Method</label>
+            <div class="seg2" id="method">
+              <div class="mode-btn active" data-method="abutting">Abutting<span class="sh">encostar</span></div>
+              <div class="mode-btn" data-method="overlapping">Overlapping<span class="sh">sobrepor</span></div>
+            </div>
+          </div>
         </div>
 
         <div class="field">
           <label>Suavizar ruído (blur) <span class="val" id="blurVal">0</span></label>
           <span class="hint">Reduz granulado antes de vetorizar (fotos escaneadas)</span>
           <input type="range" id="blur" min="0" max="8" value="0" step="1" />
-        </div>
-
-        <div class="field">
-          <label>Method</label>
-          <div class="seg2" id="method">
-            <div class="mode-btn active" data-method="abutting">Abutting<span class="sh">encostar, sem sobra</span></div>
-            <div class="mode-btn" data-method="overlapping">Overlapping<span class="sh">sobrepor, sem frestas</span></div>
-          </div>
         </div>
 
         <button class="btn btn-main" id="btnVectorize" disabled>Vetorizar imagem</button>
@@ -1896,7 +1917,7 @@ if(typeof define === 'function' && define.amd){
     html += '  <div class="stat"><span class="num">' + fmtBytes(svgBytes) + '</span><span class="lbl">Tamanho SVG</span></div>';
     html += '  <div class="stat"><span class="num">' + (deltaPct > 0 ? '-' + deltaPct + '%' : deltaPct + '%') + '</span><span class="lbl">vs. original</span></div>';
     html += '</div>';
-    html += '<p style="margin:10px 0 0;font-size:11px;color:var(--text-warm);font-family:\'IBM Plex Mono\',monospace;">Malha otimizada: ' + opt.before + ' → ' + opt.after + ' formas (traçados da mesma cor mesclados)</p>';
+    html += '<p class="mesh-note">Malha otimizada: ' + opt.before + ' → ' + opt.after + ' formas (traçados da mesma cor mesclados)</p>';
     html += '<div class="btn-row">';
     html += '  <button class="btn btn-secondary" id="btnDownload">Baixar SVG</button>';
     html += '  <button class="btn btn-secondary" id="btnCopy">Copiar código SVG</button>';
