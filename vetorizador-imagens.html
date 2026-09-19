@@ -46,6 +46,10 @@ body{
   text-align:right;line-height:1.5;}
 .stamp a{color:var(--text-light);}
 
+.head-actions{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+.head-actions .btn{width:auto;}
+.head-actions .btn.on{background:var(--accent);border-color:var(--accent);color:var(--text-light);}
+
 .layout-hint{font-size:11px;color:var(--text-warm);font-family:var(--font-body);
   margin:-16px 0 18px;opacity:.8;}
 .layout-hint svg{width:12px;height:12px;vertical-align:-1.5px;margin-right:3px;}
@@ -107,6 +111,10 @@ body{
 .min-toggle{right:50px;}
 .min-toggle svg{transition:transform .15s;}
 .card.minimized .min-toggle svg{transform:rotate(-90deg);}
+
+/* Locked layout: position and size are frozen, but minimizing still works. */
+.board.locked .card{resize:none;}
+.board.locked .drag-handle{opacity:.25;cursor:not-allowed;pointer-events:none;}
 
 .drop{border:2px dashed var(--line);border-radius:10px;padding:14px 16px;
   display:flex;align-items:center;gap:12px;text-align:left;
@@ -232,6 +240,7 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
   .drag-handle{display:none;}
   .card h2{margin-right:40px;}
   .layout-hint{display:none;}
+  #btnAlignGrid,#btnLockLayout{display:none;}
 }
 </style>
 </head>
@@ -244,9 +253,11 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
       <h1>Vetorizador de Imagens</h1>
       <p>Converta uma imagem (PNG, JPG, WEBP…) em vetor SVG direto no navegador. Nada é enviado para servidor — o processamento acontece só no seu computador.</p>
     </div>
-    <div>
+    <div class="head-actions">
       <div class="stamp">bitmap → SVG<br/>100% local / offline</div>
-      <button class="btn btn-ghost" id="btnResetLayout" style="margin-top:10px;">↺ Restaurar layout padrão</button>
+      <button class="btn btn-ghost" id="btnAlignGrid">▦ Alinhar espaçamento</button>
+      <button class="btn btn-ghost" id="btnLockLayout">🔒 Bloquear layout</button>
+      <button class="btn btn-ghost" id="btnResetLayout">↺ Restaurar layout padrão</button>
     </div>
   </header>
 
@@ -1721,11 +1732,14 @@ if(typeof define === 'function' && define.amd){
   (function initLayout(){
     var board = document.getElementById('board');
     var btnResetLayout = document.getElementById('btnResetLayout');
+    var btnAlignGrid = document.getElementById('btnAlignGrid');
+    var btnLockLayout = document.getElementById('btnLockLayout');
     if(!board) return;
     var LAYOUT_KEY = 'vetorizador:layout:v2';
     var cards = Array.prototype.slice.call(board.querySelectorAll('.card'));
     var isFreeform = window.matchMedia('(min-width:721px)').matches;
     var zTop = 10;
+    var isLocked = false;
 
     function readLayout(){
       try{
@@ -1751,6 +1765,63 @@ if(typeof define === 'function' && define.amd){
         maxBottom = Math.max(maxBottom, top + h);
       });
       board.style.height = (maxBottom + 24) + 'px';
+    }
+
+    function setLocked(v){
+      isLocked = v;
+      board.classList.toggle('locked', isLocked);
+      var data = readLayout();
+      data.locked = isLocked;
+      writeLayout(data);
+      if(btnLockLayout){
+        btnLockLayout.classList.toggle('on', isLocked);
+        btnLockLayout.textContent = isLocked ? '🔓 Desbloquear layout' : '🔒 Bloquear layout';
+      }
+    }
+
+    // Snap every panel into a tidy grid with a standard gap between them,
+    // keeping each panel's own current size and roughly the row order the
+    // user already arranged (grouped by vertical position, left to right
+    // within each row) — only the spacing is standardized, nothing resizes.
+    function alignGrid(){
+      if(!isFreeform || isLocked) return;
+      var GAP = 20;
+      var items = cards.map(function(c){
+        var r = c.getBoundingClientRect();
+        return { el: c, y: parseFloat(c.style.top) || 0, w: r.width, h: r.height };
+      }).sort(function(a, b){
+        var ay = a.y, by = b.y;
+        return ay - by || (a.el.getBoundingClientRect().x - b.el.getBoundingClientRect().x);
+      });
+
+      var rows = [];
+      var row = [];
+      var rowTop = 0, rowMaxH = 0;
+      items.forEach(function(it){
+        if(row.length && it.y >= rowTop + rowMaxH * 0.6){
+          rows.push(row);
+          row = []; rowMaxH = 0;
+        }
+        if(!row.length) rowTop = it.y;
+        rowMaxH = Math.max(rowMaxH, it.h);
+        row.push(it);
+      });
+      if(row.length) rows.push(row);
+
+      var curY = 0;
+      rows.forEach(function(r){
+        var curX = 0, maxH = 0;
+        r.forEach(function(it){
+          it.el.style.left = curX + 'px';
+          it.el.style.top = curY + 'px';
+          savePosition(it.el.id, { x: Math.round(curX), y: Math.round(curY) });
+          curX += it.w + GAP;
+          maxH = Math.max(maxH, it.h);
+        });
+        curY += maxH + GAP;
+      });
+      fitBoardHeight();
+      toast('Espaçamento padronizado entre os painéis.');
     }
 
     if(!isFreeform){
@@ -1870,6 +1941,8 @@ if(typeof define === 'function' && define.amd){
       }
     }
 
+    setLocked(readLayout().locked === true);
+
     // Minimize / restore — works in both freeform and stacked (mobile) modes.
     cards.forEach(function(card){
       var toggle = card.querySelector('.min-toggle');
@@ -1879,6 +1952,17 @@ if(typeof define === 'function' && define.amd){
         if(isFreeform) fitBoardHeight();
       });
     });
+
+    if(btnAlignGrid){
+      btnAlignGrid.addEventListener('click', alignGrid);
+    }
+
+    if(btnLockLayout){
+      btnLockLayout.addEventListener('click', function(){
+        setLocked(!isLocked);
+        toast(isLocked ? 'Layout bloqueado — arrastar e redimensionar foram desativados.' : 'Layout desbloqueado.');
+      });
+    }
 
     if(btnResetLayout){
       btnResetLayout.addEventListener('click', function(){
