@@ -58,6 +58,21 @@ body{
   font-style:italic;}
 .style-banner-note{display:block;font-size:11.5px;color:var(--text-warm);line-height:1.5;}
 
+.extra-prompt-label{display:block;font-family:var(--font-body);font-weight:600;font-size:12px;
+  color:var(--text-light);margin:14px 0 6px;}
+.extra-prompt-label span{font-weight:400;color:var(--text-warm);font-size:11px;}
+.extra-prompt{width:100%;background:var(--input-bg);border:1px solid var(--line);border-radius:8px;
+  padding:10px 12px;font-family:var(--font-body);font-size:13px;color:var(--input-text);
+  resize:vertical;min-height:44px;box-sizing:border-box;}
+.extra-prompt:focus{outline:none;border-color:var(--accent);}
+
+.effective-prompt{margin-top:12px;padding:10px 14px;background:rgba(0,0,0,.18);
+  border-radius:8px;border:1px dashed var(--line);}
+.effective-prompt-tag{display:block;font-family:var(--font-body);font-weight:600;font-size:10px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--text-warm);margin-bottom:5px;}
+.effective-prompt p{margin:0;font-size:12.5px;line-height:1.5;color:var(--text-light);
+  font-style:italic;}
+
 .board{position:relative;}
 /* Freeform canvas: JS positions each .card with left/top once it has measured
    the default flow-based layout, so this fallback only matters for the
@@ -236,9 +251,18 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
   </header>
 
   <div class="style-banner">
-    <span class="style-banner-tag">Estilo padrão de toda vetorização</span>
-    <p>"Converta a imagem em uma ilustração vetorial limpa. Mantenha as principais características e detalhes reconhecíveis, use contornos nítidos e consistentes e crie caminhos limpos"</p>
-    <span class="style-banner-note">Os valores iniciais de cada painel abaixo (cores, Corners, Method, Noise, Paths, blur) já seguem essa diretriz — do traço mais simples ao mais complexo. Ajustou os controles e quer voltar a essa base? Use "Restaurar estilo padrão" em Parâmetros avançados.</span>
+    <span class="style-banner-tag">Prompt base de toda vetorização</span>
+    <p id="basePromptText">"Converta a imagem em uma ilustração vetorial limpa. Mantenha as principais características e detalhes reconhecíveis, use contornos nítidos e consistentes e crie caminhos limpos"</p>
+
+    <label class="extra-prompt-label" for="extraPrompt">Prompt complementar <span>(opcional — detalhe, estilo ou ajuste específico para esta imagem)</span></label>
+    <textarea id="extraPrompt" class="extra-prompt" rows="2" placeholder="Ex.: fundo transparente, mais fiel aos detalhes, contornos suaves, preto e branco, poucas cores…"></textarea>
+
+    <div class="effective-prompt">
+      <span class="effective-prompt-tag">Prompt completo aplicado nesta vetorização</span>
+      <p id="effectivePromptText"></p>
+    </div>
+
+    <span class="style-banner-note">Os valores iniciais de cada painel abaixo (cores, Corners, Method, Noise, Paths, blur) já seguem o prompt base — do traço mais simples ao mais complexo. O prompt complementar ajusta esses mesmos parâmetros automaticamente ao reconhecer termos como "fundo transparente", "preto e branco", "mais/menos cores", "contornos suaves/nítidos", "sobrepor/encostar", "mais detalhado/simplificado", "mais contraste" e "mais claro/escuro". Quer voltar à base? Use "Restaurar estilo padrão" em Parâmetros avançados.</span>
   </div>
 
   <p class="layout-hint">
@@ -1931,10 +1955,97 @@ if(typeof define === 'function' && define.amd){
       btnAutoContrast.classList.remove('on');
       btnAutoContrast.textContent = 'Auto-contraste (esticar histograma)';
 
+      extraPromptEl.value = '';
+      updateEffectivePrompt();
+
       schedulePreview();
       toast('Parâmetros restaurados ao estilo padrão.');
     });
   }
+
+  // ---- prompt complementar: liga o texto digitado aos parâmetros reais do
+  // traçado. Isto NÃO é um modelo de IA generativa — é um interpretador local
+  // por palavras-chave: cada termo reconhecido aciona o mesmo controle que o
+  // usuário acionaria manualmente (clique/checkbox/slider), então o efeito é
+  // sempre real e visível na Pré-visualização e no resultado, nunca decorativo.
+  var extraPromptEl = document.getElementById('extraPrompt');
+  var effectivePromptText = document.getElementById('effectivePromptText');
+  var basePromptText = document.getElementById('basePromptText');
+
+  function stripAccents(s){
+    return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+
+  function clickMatching(selector, attr, value){
+    var el = document.querySelector(selector + '[' + attr + '="' + value + '"]');
+    if(el) el.click();
+  }
+
+  function setSlider(el, value){
+    el.value = Math.max(parseInt(el.min, 10), Math.min(parseInt(el.max, 10), value));
+    el.dispatchEvent(new Event('input'));
+  }
+
+  function nudgeSlider(el, delta){
+    setSlider(el, parseInt(el.value, 10) + delta);
+  }
+
+  function setCheckbox(el, checked){
+    if(el.checked === checked) return;
+    el.checked = checked;
+    el.dispatchEvent(new Event('change'));
+  }
+
+  var PROMPT_RULES = [
+    // modo
+    { test: /preto e branco|p&b|\bpb\b|monocrom/, run: function(){ clickMatching('#modes .mode-btn', 'data-mode', 'pb'); } },
+    { test: /escala de cinza|\bcinza\b|grayscale/, run: function(){ clickMatching('#modes .mode-btn', 'data-mode', 'cinza'); } },
+    { test: /colorid|manter (as )?cores|cores vivas/, run: function(){ clickMatching('#modes .mode-btn', 'data-mode', 'cor'); } },
+    // cantos
+    { test: /arredondad|suav|organic|curvo/, run: function(){ clickMatching('#corners .mode-btn', 'data-corners', 'smooth'); } },
+    { test: /nitid|geometric|contorno[s]? reto|angulos? reto/, run: function(){ clickMatching('#corners .mode-btn', 'data-corners', 'sharp'); } },
+    // método
+    { test: /sobrepo|overlap/, run: function(){ clickMatching('#method .mode-btn', 'data-method', 'overlapping'); } },
+    { test: /encostar|abutting|sem sobreposi/, run: function(){ clickMatching('#method .mode-btn', 'data-method', 'abutting'); } },
+    // fundo
+    { test: /remover( o)? fundo|sem fundo|fundo transparente/, run: function(){ setCheckbox(removeBgEl, true); } },
+    { test: /ignorar branco|fundo branco/, run: function(){ setCheckbox(ignoreWhiteEl, true); } },
+    // cores / detalhe
+    { test: /poucas cores|menos cores|minimalist|bem simples|flat/, run: function(){ setSlider(colorsEl, 5); } },
+    { test: /mais cores|muito detalhad|fiel aos detalhes|realista|alta fidelidade/, run: function(){ setSlider(colorsEl, 20); } },
+    { test: /muito detalhad|preciso|fiel aos contornos|alta fidelidade/, run: function(){ setSlider(pathsEl, 8); } },
+    { test: /simplificad|traco simples|poucas curvas|minimalist/, run: function(){ setSlider(pathsEl, 3); } },
+    { test: /limpo|sem ruido|sem manchas|limpar/, run: function(){ setSlider(noiseEl, 14); } },
+    // contraste / brilho
+    { test: /mais contraste|contrastante/, run: function(){ nudgeSlider(contrastEl, 20); } },
+    { test: /mais claro|clarear|iluminar/, run: function(){ nudgeSlider(brightnessEl, 15); } },
+    { test: /mais escuro|escurecer/, run: function(){ nudgeSlider(brightnessEl, -15); } }
+  ];
+
+  function applyPromptKeywords(text){
+    var norm = stripAccents(text.toLowerCase());
+    PROMPT_RULES.forEach(function(rule){
+      if(rule.test.test(norm)) rule.run();
+    });
+  }
+
+  function updateEffectivePrompt(){
+    var base = basePromptText.textContent.replace(/^"|"$/g, '');
+    var extra = extraPromptEl.value.trim();
+    effectivePromptText.textContent = extra ? (base + '. Além disso: ' + extra + '.') : base + '.';
+  }
+
+  var promptTimer = null;
+  extraPromptEl.addEventListener('input', function(){
+    clearTimeout(promptTimer);
+    promptTimer = setTimeout(function(){
+      applyPromptKeywords(extraPromptEl.value);
+      updateEffectivePrompt();
+      schedulePreview();
+    }, 250);
+  });
+
+  updateEffectivePrompt();
 
   // ---- sliders live values ----
   colorsEl.addEventListener('input', function(){ colorsVal.textContent = colorsEl.value; });
