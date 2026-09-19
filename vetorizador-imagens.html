@@ -50,6 +50,14 @@ body{
   margin:-16px 0 18px;opacity:.8;}
 .layout-hint svg{width:12px;height:12px;vertical-align:-1.5px;margin-right:3px;}
 
+.style-banner{background:var(--panel-dark);border:1px solid var(--accent);border-left:4px solid var(--accent);
+  border-radius:10px;padding:16px 20px;margin-bottom:22px;}
+.style-banner-tag{display:block;font-family:var(--font-body);font-weight:600;font-size:10.5px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
+.style-banner p{margin:0 0 8px;font-size:13.5px;line-height:1.55;color:var(--text-light);
+  font-style:italic;}
+.style-banner-note{display:block;font-size:11.5px;color:var(--text-warm);line-height:1.5;}
+
 .board{position:relative;}
 /* Freeform canvas: JS positions each .card with left/top once it has measured
    the default flow-based layout, so this fallback only matters for the
@@ -227,6 +235,12 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
     </div>
   </header>
 
+  <div class="style-banner">
+    <span class="style-banner-tag">Estilo padrão de toda vetorização</span>
+    <p>"Converta a imagem em uma ilustração vetorial limpa, em um estilo de desenho animado moderno. Mantenha as principais características e detalhes reconhecíveis, use contornos nítidos e consistentes e crie caminhos limpos."</p>
+    <span class="style-banner-note">Os valores iniciais de cada painel abaixo (cores, Corners, Method, Noise, Paths, blur) já seguem essa diretriz — do traço mais simples ao mais complexo. Ajustou os controles e quer voltar a essa base? Use "Restaurar estilo padrão" em Parâmetros avançados.</span>
+  </div>
+
   <p class="layout-hint">
     <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg>
     Arraste pela alça para mover o painel para qualquer lugar (horizontal e vertical), puxe o canto inferior direito para aumentar ou diminuir, e use a setinha para minimizar ou reabrir.
@@ -332,9 +346,9 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
       </div>
 
       <div class="field" id="colorsField">
-        <label>Número de cores <span class="val" id="colorsVal">12</span></label>
+        <label>Número de cores <span class="val" id="colorsVal">8</span></label>
         <span class="hint">Mais cores = mais fiel, arquivo maior</span>
-        <input type="range" id="colors" min="2" max="32" value="12" step="1" />
+        <input type="range" id="colors" min="2" max="32" value="8" step="1" />
       </div>
 
       <div class="field pb-only" id="thresholdField">
@@ -352,14 +366,14 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 
       <div class="field-row">
         <div class="field" style="margin-top:0;">
-          <label>Paths <span class="val" id="pathsVal">5</span></label>
+          <label>Paths <span class="val" id="pathsVal">6</span></label>
           <span class="hint">Ajuste do caminho às curvas</span>
-          <input type="range" id="paths" min="1" max="10" value="5" step="1" />
+          <input type="range" id="paths" min="1" max="10" value="6" step="1" />
         </div>
         <div class="field" style="margin-top:0;">
-          <label>Noise <span class="val" id="noiseVal">8</span>px</label>
+          <label>Noise <span class="val" id="noiseVal">10</span>px</label>
           <span class="hint">Descarta manchas pequenas</span>
-          <input type="range" id="noise" min="0" max="40" value="8" step="1" />
+          <input type="range" id="noise" min="0" max="40" value="10" step="1" />
         </div>
       </div>
 
@@ -381,11 +395,12 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
       </div>
 
       <div class="field">
-        <label>Suavizar ruído (blur) <span class="val" id="blurVal">0</span></label>
+        <label>Suavizar ruído (blur) <span class="val" id="blurVal">1</span></label>
         <span class="hint">Reduz granulado antes de vetorizar (fotos escaneadas)</span>
-        <input type="range" id="blur" min="0" max="8" value="0" step="1" />
+        <input type="range" id="blur" min="0" max="8" value="1" step="1" />
       </div>
 
+      <button class="btn btn-ghost" id="btnResetStyle" style="width:100%;margin-top:16px;">↺ Restaurar estilo padrão (ilustração limpa)</button>
       <button class="btn btn-main" id="btnVectorize" disabled>Vetorizar imagem</button>
     </div>
 
@@ -1883,6 +1898,43 @@ if(typeof define === 'function' && define.amd){
     document.querySelectorAll('#method .mode-btn').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
   });
+
+  // ---- estilo padrão: "ilustração vetorial limpa, estilo cartoon moderno,
+  // contornos nítidos e consistentes, caminhos limpos" — a base de toda
+  // vetorização, do traço mais simples ao mais complexo. Um clique devolve
+  // todos os parâmetros a essa receita, não só o layout dos painéis.
+  var btnResetStyle = document.getElementById('btnResetStyle');
+  if(btnResetStyle){
+    btnResetStyle.addEventListener('click', function(){
+      document.querySelectorAll('#modes .mode-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-mode') === 'cor'); });
+      state.mode = 'cor';
+      thresholdField.classList.remove('on');
+      colorsField.style.display = '';
+
+      colorsEl.value = 8; colorsVal.textContent = '8';
+      threshEl.value = 128; threshVal.textContent = '128';
+      pathsEl.value = 6; pathsVal.textContent = '6';
+      noiseEl.value = 10; noiseVal.textContent = '10';
+      blurEl.value = 1; blurVal.textContent = '1';
+      contrastEl.value = 0; contrastVal.textContent = '0';
+      brightnessEl.value = 0; brightnessVal.textContent = '0';
+      bgToleranceEl.value = 30; bgToleranceVal.textContent = '30';
+
+      document.querySelectorAll('#corners .mode-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-corners') === 'sharp'); });
+      document.querySelectorAll('#method .mode-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-method') === 'abutting'); });
+
+      ignoreWhiteEl.checked = false;
+      removeBgEl.checked = false;
+      bgToleranceField.classList.remove('on');
+
+      state.autoContrast = null;
+      btnAutoContrast.classList.remove('on');
+      btnAutoContrast.textContent = 'Auto-contraste (esticar histograma)';
+
+      schedulePreview();
+      toast('Parâmetros restaurados ao estilo padrão.');
+    });
+  }
 
   // ---- sliders live values ----
   colorsEl.addEventListener('input', function(){ colorsVal.textContent = colorsEl.value; });
