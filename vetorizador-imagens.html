@@ -2365,8 +2365,26 @@ if(typeof define === 'function' && define.amd){
       '<div class="compare">' +
       '  <div class="pane"><div class="lbl"><span>Original</span></div><div class="box"><img src="' + state.origDataURL + '" alt="Original" /></div></div>' +
       '  <div class="pane"><div class="lbl"><span>Com ajustes</span></div><div class="box"><canvas id="previewCanvas"></canvas></div></div>' +
+      '</div>' +
+      '<div class="btn-row">' +
+      '  <button class="btn btn-secondary" id="btnDownloadPreview" style="flex:1 1 100%;">Baixar esta imagem (PNG)</button>' +
       '</div>';
     previewCanvas = document.getElementById('previewCanvas');
+  }
+
+  function downloadPreviewPNG(){
+    if(!previewCanvas) return;
+    previewCanvas.toBlob(function(blob){
+      if(!blob){ toast('Não deu para gerar o PNG.'); return; }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = baseName() + '-editada.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    }, 'image/png');
   }
 
   function updatePreview(){
@@ -2384,6 +2402,13 @@ if(typeof define === 'function' && define.amd){
     clearTimeout(previewTimer);
     previewTimer = setTimeout(updatePreview, 60);
   }
+
+  // previewArea itself is never replaced, only its innerHTML (rebuilt by
+  // buildPreviewShell on each new image), so one delegated listener here
+  // keeps working across re-renders — same pattern as resultArea below.
+  previewArea.addEventListener('click', function(e){
+    if(e.target.closest('#btnDownloadPreview')) downloadPreviewPNG();
+  });
 
   // ---- Image Trace: opções avançadas ----
 
