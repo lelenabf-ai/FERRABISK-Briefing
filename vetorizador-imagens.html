@@ -1,0 +1,2861 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vetorizador de Imagens — Ferrabisk Estúdio</title>
+<meta name="description" content="Converta imagens (PNG, JPG, WEBP) em vetor SVG direto no navegador, sem enviar nada para servidor." />
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap');
+
+:root{
+  --bg:#4c5a3e;
+  --panel:#5e6f4d;
+  --panel-dark:#3d4832;
+  --text-light:#f4eee3;
+  --text-warm:#e4d2b4;
+  --input-bg:#f4eee3;
+  --input-text:#332420;
+  --accent:#b5562f;
+  --accent2:#6e2a33;
+  --cafe:#332420;
+  --line:rgba(244,238,227,.16);
+  --line-soft:rgba(244,238,227,.08);
+  --font-head:'Bricolage Grotesque',sans-serif;
+  --font-body:'Poppins',system-ui,sans-serif;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--text-light);
+  font-family:var(--font-body); line-height:1.55;
+  min-height:100vh;
+}
+.wrap{max-width:1220px;margin:0 auto;padding:34px 20px 60px;}
+
+.eyebrow{font-family:var(--font-body);font-weight:600;font-size:11px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--text-warm);}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;
+  flex-wrap:wrap;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--line);}
+.head h1{font-family:var(--font-head);font-weight:800;font-size:31px;line-height:1.08;
+  margin:8px 0 6px;color:var(--text-light);}
+.head p{margin:0;color:var(--text-warm);font-size:14px;max-width:520px;}
+.stamp{font-family:var(--font-body);font-weight:500;font-size:11px;color:var(--text-warm);
+  text-align:right;line-height:1.5;}
+.stamp a{color:var(--text-light);}
+
+.head-actions{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+.head-actions .btn{width:auto;}
+.head-actions .btn.on{background:var(--accent);border-color:var(--accent);color:var(--text-light);}
+
+.layout-hint{font-size:11px;color:var(--text-warm);font-family:var(--font-body);
+  margin:-16px 0 18px;opacity:.8;}
+.layout-hint svg{width:12px;height:12px;vertical-align:-1.5px;margin-right:3px;}
+
+.style-banner{background:var(--panel-dark);border:1px solid var(--accent);border-left:4px solid var(--accent);
+  border-radius:10px;padding:16px 20px;margin-bottom:22px;}
+.style-banner-tag{display:block;font-family:var(--font-body);font-weight:600;font-size:10.5px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
+.style-banner p{margin:0 0 8px;font-size:13.5px;line-height:1.55;color:var(--text-light);
+  font-style:italic;}
+.style-banner-note{display:block;font-size:11.5px;color:var(--text-warm);line-height:1.5;}
+
+.extra-prompt-label{display:block;font-family:var(--font-body);font-weight:600;font-size:12px;
+  color:var(--text-light);margin:14px 0 6px;}
+.extra-prompt-label span{font-weight:400;color:var(--text-warm);font-size:11px;}
+.extra-prompt{width:100%;background:var(--input-bg);border:1px solid var(--line);border-radius:8px;
+  padding:10px 12px;font-family:var(--font-body);font-size:13px;color:var(--input-text);
+  resize:vertical;min-height:44px;box-sizing:border-box;}
+.extra-prompt:focus{outline:none;border-color:var(--accent);}
+
+.effective-prompt{margin-top:12px;padding:10px 14px;background:rgba(0,0,0,.18);
+  border-radius:8px;border:1px dashed var(--line);}
+.effective-prompt-tag{display:block;font-family:var(--font-body);font-weight:600;font-size:10px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--text-warm);margin-bottom:5px;}
+.effective-prompt p{margin:0;font-size:12.5px;line-height:1.5;color:var(--text-light);
+  font-style:italic;}
+
+.board{position:relative;}
+/* Freeform canvas: JS positions each .card with left/top once it has measured
+   the default flow-based layout, so this fallback only matters for the
+   instant before that JS runs (or if it's disabled). */
+.board.unpositioned{display:flex;flex-wrap:wrap;align-items:flex-start;gap:20px;}
+
+.card{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:22px 22px 24px;box-shadow:0 6px 20px rgba(0,0,0,.18);
+  box-sizing:border-box;overflow:auto;resize:both;
+  width:390px;min-width:260px;min-height:96px;max-width:100%;}
+.board.unpositioned .card{position:relative;flex:0 0 auto;}
+.card.card-wide{width:600px;}
+.card.dragging{box-shadow:0 14px 34px rgba(0,0,0,.35);outline:2px solid var(--accent);cursor:grabbing;}
+.card h2{font-family:var(--font-head);font-weight:700;font-size:17px;
+  letter-spacing:-.01em;margin:0 68px 4px 0;color:var(--text-light);}
+.card .sub{font-family:var(--font-body);font-weight:500;font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--text-warm);margin:0 0 16px;}
+
+.card.minimized{height:auto !important;min-height:0;resize:none;overflow:hidden;padding-bottom:16px;}
+.card.minimized > *:not(.drag-handle):not(.min-toggle):not(h2){display:none;}
+.card.minimized h2{margin-bottom:0;}
+
+.card-btn{position:absolute;top:16px;width:26px;height:26px;border-radius:6px;
+  border:1px solid transparent;background:transparent;color:var(--text-warm);
+  display:flex;align-items:center;justify-content:center;opacity:.55;transition:all .12s;}
+.card-btn:hover{opacity:1;background:var(--panel-dark);border-color:var(--line);}
+.card-btn svg{width:15px;height:15px;pointer-events:none;}
+
+.drag-handle{right:16px;cursor:grab;touch-action:none;}
+.drag-handle:active{cursor:grabbing;}
+
+.min-toggle{right:50px;}
+.min-toggle svg{transition:transform .15s;}
+.card.minimized .min-toggle svg{transform:rotate(-90deg);}
+
+/* Locked layout: position and size are frozen, but minimizing still works. */
+.board.locked .card{resize:none;}
+.board.locked .drag-handle{opacity:.25;cursor:not-allowed;pointer-events:none;}
+
+.drop{border:2px dashed var(--line);border-radius:10px;padding:14px 16px;
+  display:flex;align-items:center;gap:12px;text-align:left;
+  cursor:pointer;transition:border-color .15s,background .15s;background:var(--panel-dark);}
+.drop:hover,.drop.drag{border-color:var(--accent);background:rgba(181,86,47,.12);}
+.drop svg{width:20px;height:20px;flex:none;display:block;opacity:.85;}
+.drop .dt{min-width:0;}
+.drop .t1{font-weight:600;font-size:13px;color:var(--text-light);}
+.drop .t2{font-size:11.5px;color:var(--text-warm);margin-top:2px;font-family:var(--font-body);}
+.drop input{display:none;}
+
+.filemeta{margin-top:14px;font-family:var(--font-body);font-size:11.5px;
+  color:var(--text-warm);display:none;line-height:1.7;}
+.filemeta.on{display:block;}
+.filemeta b{color:var(--text-light);}
+.filemeta .warn-note{color:#e8c07a;}
+
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media (max-width:480px){.field-row{grid-template-columns:1fr;}}
+
+.field{margin:16px 0 0;}
+.field-row .field{margin-top:0;}
+.field label{display:flex;justify-content:space-between;align-items:baseline;
+  font-size:12.5px;font-weight:600;color:var(--text-light);margin-bottom:6px;gap:8px;}
+.field label .val{font-family:var(--font-body);font-weight:500;color:var(--text-warm);}
+.field .hint{display:block;font-size:11px;color:var(--text-warm);margin:-2px 0 7px;
+  font-family:var(--font-body);opacity:.85;}
+
+select.ctl{width:100%;background:var(--input-bg);border:1px solid var(--line);border-radius:8px;
+  padding:10px 12px;font-family:inherit;font-size:13.5px;color:var(--input-text);cursor:pointer;}
+
+input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
+
+.modes{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.seg2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.mode-btn{font-family:var(--font-body);font-weight:600;font-size:12.5px;cursor:pointer;
+  border-radius:8px;padding:9px 6px;text-align:center;border:1px solid var(--line);
+  background:var(--panel-dark);color:var(--text-warm);transition:all .12s;}
+.mode-btn.active{background:var(--accent);border-color:var(--accent);color:var(--text-light);}
+.mode-btn .sh{display:block;font-size:10px;font-family:var(--font-body);
+  font-weight:400;opacity:.8;margin-top:2px;text-transform:none;letter-spacing:0;}
+
+.pb-only,.opt-field{display:none;}
+.pb-only.on,.opt-field.on{display:block;}
+
+.check-row{display:flex;align-items:center;gap:9px;margin-top:14px;cursor:pointer;}
+.check-row input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex:none;}
+.check-row .ctext{font-size:12.5px;color:var(--text-light);font-weight:600;font-family:var(--font-body);}
+.check-row .ctext .sh{display:block;font-weight:400;color:var(--text-warm);font-size:11px;
+  font-family:var(--font-body);margin-top:1px;}
+
+.divider{border:none;border-top:1px solid var(--line);margin:18px 0;}
+
+.btn{font-family:var(--font-body);font-weight:600;font-size:14px;cursor:pointer;
+  border-radius:8px;border:1px solid transparent;padding:12px 18px;width:100%;
+  transition:transform .1s,opacity .15s;}
+.btn:active{transform:translateY(1px);}
+.btn-main{background:var(--accent);color:var(--text-light);margin-top:20px;}
+.btn-main:hover{opacity:.92;}
+.btn-main:disabled{opacity:.45;cursor:not-allowed;}
+.btn-ghost{background:transparent;border-color:var(--line);color:var(--text-warm);
+  font-size:12px;padding:8px 12px;width:auto;}
+.btn-ghost:hover{border-color:var(--text-warm);color:var(--text-light);}
+.btn-ghost.on{background:var(--accent);border-color:var(--accent);color:var(--text-light);}
+.btn-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
+.btn-row .btn{width:auto;flex:1;padding:10px 14px;font-size:13px;}
+.btn-row .btn-secondary{background:var(--panel-dark);color:var(--text-light);border-color:var(--line);}
+
+.result-empty{color:var(--text-warm);font-size:13.5px;text-align:center;padding:60px 20px;
+  border:1px dashed var(--line);border-radius:10px;font-family:var(--font-body);}
+
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media (max-width:560px){.compare{grid-template-columns:1fr;}}
+.pane{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:
+  repeating-conic-gradient(#6b7a5a 0% 25%, #5e6f4d 0% 50%) 0 0/18px 18px;}
+.pane .lbl{background:var(--panel-dark);color:var(--text-warm);font-family:var(--font-body);
+  font-weight:500;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding:6px 10px;
+  display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.pane .box{min-height:220px;display:flex;align-items:center;justify-content:center;padding:10px;position:relative;}
+.pane img{max-width:100%;max-height:320px;display:block;}
+.pane .box svg,.pane .box canvas{max-width:100%;max-height:320px;display:block;}
+.pane .box svg path{cursor:default;}
+.pane .box.editing svg path{cursor:pointer;}
+.pane .box.editing svg path:hover{outline:1.5px dashed rgba(181,86,47,.9);outline-offset:1px;}
+.pane .box svg path.geo-selected{outline:2px solid var(--accent);outline-offset:1px;}
+
+.edit-toolbar{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;
+  background:var(--panel-dark);display:none;flex-wrap:wrap;gap:6px;align-items:center;}
+.edit-toolbar.on{display:flex;}
+.edit-toolbar .et-label{font-family:var(--font-body);font-weight:500;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.08em;color:var(--text-warm);width:100%;margin-bottom:2px;}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px;}
+@media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr);}}
+.stat{background:var(--panel-dark);border:1px solid var(--line);border-radius:10px;
+  padding:12px 10px;text-align:center;}
+.stat .num{display:block;font-family:var(--font-body);font-weight:700;font-size:19px;
+  color:var(--text-light);line-height:1;}
+.stat .lbl{display:block;font-family:var(--font-body);font-weight:500;font-size:9.5px;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--text-warm);margin-top:6px;}
+
+.mesh-note{margin:10px 0 0;font-size:11px;color:var(--text-warm);font-family:var(--font-body);}
+
+.priv{font-size:11.5px;color:var(--text-warm);font-family:var(--font-body);
+  text-align:center;margin-top:30px;opacity:.8;}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);
+  border-radius:50%;margin:0 auto 14px;animation:rot .8s linear infinite;}
+@keyframes rot{to{transform:rotate(360deg);}}
+.loading{text-align:center;padding:60px 20px;color:var(--text-warm);font-size:13px;
+  font-family:var(--font-body);}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--panel-dark);color:var(--text-light);border:1px solid var(--line);
+  border-radius:8px;padding:10px 18px;font-size:13px;font-family:var(--font-body);font-weight:500;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:86vw;}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media (max-width:720px){
+  .board{height:auto !important;display:block;}
+  .card{position:static !important;resize:none !important;width:100% !important;height:auto !important;
+    margin-bottom:20px;}
+  .card.minimized{margin-bottom:20px;}
+  .drag-handle{display:none;}
+  .card h2{margin-right:40px;}
+  .layout-hint{display:none;}
+  #btnAlignGrid,#btnLockLayout{display:none;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="head">
+    <div>
+      <div class="eyebrow">Ferrabisk Estúdio · Ferramentas</div>
+      <h1>Vetorizador de Imagens</h1>
+      <p>Converta uma imagem (PNG, JPG, WEBP…) em vetor SVG direto no navegador. Nada é enviado para servidor — o processamento acontece só no seu computador.</p>
+    </div>
+    <div class="head-actions">
+      <div class="stamp">bitmap → SVG<br/>100% local / offline</div>
+      <button class="btn btn-ghost" id="btnAlignGrid">▦ Alinhar espaçamento</button>
+      <button class="btn btn-ghost" id="btnLockLayout">🔒 Bloquear layout</button>
+      <button class="btn btn-ghost" id="btnResetLayout">↺ Restaurar layout padrão</button>
+    </div>
+  </header>
+
+  <div class="style-banner">
+    <span class="style-banner-tag">Prompt base de toda vetorização</span>
+    <p id="basePromptText">"Converta a imagem em uma ilustração vetorial limpa. Mantenha as principais características e detalhes reconhecíveis, use contornos nítidos e consistentes e crie caminhos limpos"</p>
+
+    <label class="extra-prompt-label" for="extraPrompt">Prompt complementar <span>(opcional — detalhe, estilo ou ajuste específico para esta imagem)</span></label>
+    <textarea id="extraPrompt" class="extra-prompt" rows="2" placeholder="Ex.: fundo transparente, mais fiel aos detalhes, contornos suaves, preto e branco, poucas cores…"></textarea>
+
+    <div class="effective-prompt">
+      <span class="effective-prompt-tag">Prompt completo aplicado nesta vetorização</span>
+      <p id="effectivePromptText"></p>
+    </div>
+
+    <span class="style-banner-note">Os valores iniciais de cada painel abaixo (cores, Corners, Method, Noise, Paths, blur) já seguem o prompt base — do traço mais simples ao mais complexo. O prompt complementar ajusta esses mesmos parâmetros automaticamente ao reconhecer termos como "fundo transparente", "preto e branco", "mais/menos cores", "contornos suaves/nítidos", "sobrepor/encostar", "mais detalhado/simplificado", "mais contraste" e "mais claro/escuro". Quer voltar à base? Use "Restaurar estilo padrão" em Parâmetros avançados.</span>
+  </div>
+
+  <p class="layout-hint">
+    <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg>
+    Arraste pela alça para mover o painel para qualquer lugar (horizontal e vertical), puxe o canto inferior direito para aumentar ou diminuir, e use a setinha para minimizar ou reabrir.
+  </p>
+
+  <div class="board" id="board">
+
+    <div class="card" id="card-imagem">
+      <button class="card-btn min-toggle" title="Minimizar/expandir"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></button>
+      <button class="card-btn drag-handle" title="Arrastar para mover"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg></button>
+      <h2>1. Escolha a imagem</h2>
+      <p class="sub">PNG · JPG · WEBP · GIF · BMP</p>
+
+      <label class="drop" id="drop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        <div class="dt">
+          <div class="t1">Arraste uma imagem aqui</div>
+          <div class="t2">ou clique para escolher o arquivo</div>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" />
+      </label>
+
+      <div class="filemeta" id="fileMeta"></div>
+    </div>
+
+    <div class="card card-wide" id="card-preview">
+      <button class="card-btn min-toggle" title="Minimizar/expandir"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></button>
+      <button class="card-btn drag-handle" title="Arrastar para mover"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg></button>
+      <h2>Pré-visualização</h2>
+      <p class="sub">Como fica antes de vetorizar</p>
+      <div id="previewArea">
+        <div class="result-empty">Envie uma imagem para ver a prévia aqui.</div>
+      </div>
+    </div>
+
+    <div class="card card-wide" id="resultCard">
+      <button class="card-btn min-toggle" title="Minimizar/expandir"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></button>
+      <button class="card-btn drag-handle" title="Arrastar para mover"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg></button>
+      <h2>Resultado</h2>
+      <p class="sub">Original × vetor SVG</p>
+      <div id="resultArea">
+        <div class="result-empty">Envie uma imagem e clique em "Vetorizar imagem" para ver o resultado aqui.</div>
+      </div>
+    </div>
+
+    <div class="card" id="card-preprocess">
+      <button class="card-btn min-toggle" title="Minimizar/expandir"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></button>
+      <button class="card-btn drag-handle" title="Arrastar para mover"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg></button>
+      <h2>2. Pré-processamento</h2>
+      <p class="sub">Ajuste de bitmap, estilo Photoshop</p>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Contraste <span class="val" id="contrastVal">0</span></label>
+          <span class="hint">Separa claros de escuros</span>
+          <input type="range" id="contrast" min="-100" max="100" value="0" step="1" />
+        </div>
+        <div class="field">
+          <label>Brilho <span class="val" id="brightnessVal">0</span></label>
+          <span class="hint">Clareia ou escurece tudo</span>
+          <input type="range" id="brightness" min="-100" max="100" value="0" step="1" />
+        </div>
+      </div>
+
+      <button class="btn btn-ghost" id="btnAutoContrast" style="margin-top:16px;width:100%;">Auto-contraste (esticar histograma)</button>
+
+      <label class="check-row">
+        <input type="checkbox" id="ignoreWhite" />
+        <span class="ctext">Ignore White (ignorar branco)
+          <span class="sh">Fundo branco/quase-branco vira transparente no SVG</span>
+        </span>
+      </label>
+
+      <hr class="divider" />
+
+      <label class="check-row">
+        <input type="checkbox" id="removeBg" />
+        <span class="ctext">Remover fundo
+          <span class="sh">Detecta a cor das bordas e apaga tudo que for conectado a ela, de qualquer cor</span>
+        </span>
+      </label>
+
+      <div class="field opt-field" id="bgToleranceField">
+        <label>Tolerância <span class="val" id="bgToleranceVal">30</span></label>
+        <span class="hint">Mais alto = remove uma faixa maior de tons parecidos com o fundo</span>
+        <input type="range" id="bgTolerance" min="1" max="100" value="30" step="1" />
+      </div>
+    </div>
+
+    <div class="card" id="card-trace">
+      <button class="card-btn min-toggle" title="Minimizar/expandir"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></button>
+      <button class="card-btn drag-handle" title="Arrastar para mover"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg></button>
+      <h2>3. Image Trace</h2>
+      <p class="sub">Modo e cor</p>
+
+      <div class="field" style="margin-top:0;">
+        <label>Modo</label>
+        <div class="modes" id="modes">
+          <div class="mode-btn active" data-mode="cor">Colorido</div>
+          <div class="mode-btn" data-mode="cinza">Cinza</div>
+          <div class="mode-btn" data-mode="pb">P&amp;B</div>
+        </div>
+      </div>
+
+      <div class="field" id="colorsField">
+        <label>Número de cores <span class="val" id="colorsVal">8</span></label>
+        <span class="hint">Mais cores = mais fiel, arquivo maior</span>
+        <input type="range" id="colors" min="2" max="32" value="8" step="1" />
+      </div>
+
+      <div class="field pb-only" id="thresholdField">
+        <label>Limiar preto/branco <span class="val" id="threshVal">128</span></label>
+        <span class="hint">Move a linha entre preto e branco</span>
+        <input type="range" id="threshold" min="10" max="245" value="128" step="1" />
+      </div>
+    </div>
+
+    <div class="card card-wide" id="card-advanced">
+      <button class="card-btn min-toggle" title="Minimizar/expandir"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></button>
+      <button class="card-btn drag-handle" title="Arrastar para mover"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="3" r="1.3"/><circle cx="4" cy="8" r="1.3"/><circle cx="4" cy="13" r="1.3"/><circle cx="10" cy="3" r="1.3"/><circle cx="10" cy="8" r="1.3"/><circle cx="10" cy="13" r="1.3"/></svg></button>
+      <h2>Parâmetros avançados</h2>
+      <p class="sub">Traçado — estilo painel Image Trace</p>
+
+      <div class="field-row">
+        <div class="field" style="margin-top:0;">
+          <label>Paths <span class="val" id="pathsVal">6</span></label>
+          <span class="hint">Ajuste do caminho às curvas</span>
+          <input type="range" id="paths" min="1" max="10" value="6" step="1" />
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Noise <span class="val" id="noiseVal">10</span>px</label>
+          <span class="hint">Descarta manchas pequenas</span>
+          <input type="range" id="noise" min="0" max="40" value="10" step="1" />
+        </div>
+      </div>
+
+      <div class="field-row" style="margin-top:16px;">
+        <div class="field" style="margin-top:0;">
+          <label>Corners</label>
+          <div class="seg2" id="corners">
+            <div class="mode-btn active" data-corners="sharp">Nítidos<span class="sh">ângulos retos</span></div>
+            <div class="mode-btn" data-corners="smooth">Suaves<span class="sh">cantos arredondados</span></div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Method</label>
+          <div class="seg2" id="method">
+            <div class="mode-btn active" data-method="abutting">Abutting<span class="sh">encostar</span></div>
+            <div class="mode-btn" data-method="overlapping">Overlapping<span class="sh">sobrepor</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Suavizar ruído (blur) <span class="val" id="blurVal">1</span></label>
+        <span class="hint">Reduz granulado antes de vetorizar (fotos escaneadas)</span>
+        <input type="range" id="blur" min="0" max="8" value="1" step="1" />
+      </div>
+
+      <button class="btn btn-ghost" id="btnResetStyle" style="width:100%;margin-top:16px;">↺ Restaurar estilo padrão (ilustração limpa)</button>
+      <button class="btn btn-main" id="btnVectorize" disabled>Vetorizar imagem</button>
+    </div>
+
+  </div>
+
+  <div class="priv">As imagens não saem do seu navegador — tudo roda localmente, sem upload para nenhum servidor. O layout dos painéis também fica salvo só no seu navegador.</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* imagetracerjs v1.2.6 — András Jankovics — Unlicense/public domain — https://github.com/jankovicsandras/imagetracerjs
+   Embedded inline so this page works fully offline (no CDN dependency). */
+/*
+	imagetracer.js version 1.2.6
+	Simple raster image tracer and vectorizer written in JavaScript.
+	andras@jankovics.net
+*/
+
+/*
+
+The Unlicense / PUBLIC DOMAIN
+
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or
+distribute this software, either in source code form or as a compiled
+binary, for any purpose, commercial or non-commercial, and by any
+means.
+
+In jurisdictions that recognize copyright laws, the author or authors
+of this software dedicate any and all copyright interest in the
+software to the public domain. We make this dedication for the benefit
+of the public at large and to the detriment of our heirs and
+successors. We intend this dedication to be an overt act of
+relinquishment in perpetuity of all present and future rights to this
+software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to http://unlicense.org/
+
+*/
+
+(function(){ 'use strict';
+
+function ImageTracer(){
+	var _this = this;
+
+	this.versionnumber = '1.2.6',
+	
+	////////////////////////////////////////////////////////////
+	//
+	//  API
+	//
+	////////////////////////////////////////////////////////////
+	
+	// Loading an image from a URL, tracing when loaded,
+	// then executing callback with the scaled svg string as argument
+	this.imageToSVG = function( url, callback, options ){
+		options = _this.checkoptions(options);
+		// loading image, tracing and callback
+		_this.loadImage(
+			url,
+			function(canvas){
+				callback(
+					_this.imagedataToSVG( _this.getImgdata(canvas), options )
+				);
+			},
+			options
+		);
+	},// End of imageToSVG()
+	
+	// Tracing imagedata, then returning the scaled svg string
+	this.imagedataToSVG = function( imgd, options ){
+		options = _this.checkoptions(options);
+		// tracing imagedata
+		var td = _this.imagedataToTracedata( imgd, options );
+		// returning SVG string
+		return _this.getsvgstring(td, options);
+	},// End of imagedataToSVG()
+	
+	// Loading an image from a URL, tracing when loaded,
+	// then executing callback with tracedata as argument
+	this.imageToTracedata = function( url, callback, options ){
+		options = _this.checkoptions(options);
+		// loading image, tracing and callback
+		_this.loadImage(
+				url,
+				function(canvas){
+					callback(
+						_this.imagedataToTracedata( _this.getImgdata(canvas), options )
+					);
+				},
+				options
+		);
+	},// End of imageToTracedata()
+	
+	// Tracing imagedata, then returning tracedata (layers with paths, palette, image size)
+	this.imagedataToTracedata = function( imgd, options ){
+		options = _this.checkoptions(options);
+		
+		// 1. Color quantization
+		var ii = _this.colorquantization( imgd, options );
+		
+		if(options.layering === 0){// Sequential layering
+			
+			// create tracedata object
+			var tracedata = {
+				layers : [],
+				palette : ii.palette,
+				width : ii.array[0].length-2,
+				height : ii.array.length-2
+			};
+			
+			// Loop to trace each color layer
+			for(var colornum=0; colornum<ii.palette.length; colornum++){
+				
+				// layeringstep -> pathscan -> internodes -> batchtracepaths
+				var tracedlayer =
+					_this.batchtracepaths(
+							
+						_this.internodes(
+								
+							_this.pathscan(
+								_this.layeringstep( ii, colornum ),
+								options.pathomit
+							),
+							
+							options
+							
+						),
+						
+						options.ltres,
+						options.qtres
+						
+					);
+				
+				// adding traced layer
+				tracedata.layers.push(tracedlayer);
+				
+			}// End of color loop
+			
+		}else{// Parallel layering
+			// 2. Layer separation and edge detection
+			var ls = _this.layering( ii );
+			
+			// Optional edge node visualization
+			if(options.layercontainerid){ _this.drawLayers( ls, _this.specpalette, options.scale, options.layercontainerid ); }
+			
+			// 3. Batch pathscan
+			var bps = _this.batchpathscan( ls, options.pathomit );
+			
+			// 4. Batch interpollation
+			var bis = _this.batchinternodes( bps, options );
+			
+			// 5. Batch tracing and creating tracedata object
+			var tracedata = {
+				layers : _this.batchtracelayers( bis, options.ltres, options.qtres ),
+				palette : ii.palette,
+				width : imgd.width,
+				height : imgd.height
+			};
+			
+		}// End of parallel layering
+		
+		// return tracedata
+		return tracedata;
+		
+	},// End of imagedataToTracedata()
+	
+	this.optionpresets = {
+		'default': {
+			
+			// Tracing
+			corsenabled : false,
+			ltres : 1,
+			qtres : 1,
+			pathomit : 8,
+			rightangleenhance : true,
+			
+			// Color quantization
+			colorsampling : 2,
+			numberofcolors : 16,
+			mincolorratio : 0,
+			colorquantcycles : 3,
+			
+			// Layering method
+			layering : 0,
+			
+			// SVG rendering
+			strokewidth : 1,
+			linefilter : false,
+			scale : 1,
+			roundcoords : 1,
+			viewbox : false,
+			desc : false,
+			lcpr : 0,
+			qcpr : 0,
+			
+			// Blur
+			blurradius : 0,
+			blurdelta : 20
+			
+		},
+		'posterized1': { colorsampling:0, numberofcolors:2 },
+		'posterized2': { numberofcolors:4, blurradius:5 },
+		'curvy': { ltres:0.01, linefilter:true, rightangleenhance:false },
+		'sharp': { qtres:0.01, linefilter:false },
+		'detailed': { pathomit:0, roundcoords:2, ltres:0.5, qtres:0.5, numberofcolors:64 },
+		'smoothed': { blurradius:5, blurdelta: 64 },
+		'grayscale': { colorsampling:0, colorquantcycles:1, numberofcolors:7 },
+		'fixedpalette': { colorsampling:0, colorquantcycles:1, numberofcolors:27 },
+		'randomsampling1': { colorsampling:1, numberofcolors:8 },
+		'randomsampling2': { colorsampling:1, numberofcolors:64 },
+		'artistic1': { colorsampling:0, colorquantcycles:1, pathomit:0, blurradius:5, blurdelta: 64, ltres:0.01, linefilter:true, numberofcolors:16, strokewidth:2 },
+		'artistic2': { qtres:0.01, colorsampling:0, colorquantcycles:1, numberofcolors:4, strokewidth:0 },
+		'artistic3': { qtres:10, ltres:10, numberofcolors:8 },
+		'artistic4': { qtres:10, ltres:10, numberofcolors:64, blurradius:5, blurdelta: 256, strokewidth:2 },
+		'posterized3': { ltres: 1, qtres: 1, pathomit: 20, rightangleenhance: true, colorsampling: 0, numberofcolors: 3,
+			mincolorratio: 0, colorquantcycles: 3, blurradius: 3, blurdelta: 20, strokewidth: 0, linefilter: false,
+			roundcoords: 1, pal: [ { r: 0, g: 0, b: 100, a: 255 }, { r: 255, g: 255, b: 255, a: 255 } ] }
+	},// End of optionpresets
+	
+	// creating options object, setting defaults for missing values
+	this.checkoptions = function(options){
+		options = options || {};
+		// Option preset
+		if(typeof options === 'string'){
+			options = options.toLowerCase();
+			if( _this.optionpresets[options] ){ options = _this.optionpresets[options]; }else{ options = {}; }
+		}
+		// Defaults
+		var ok = Object.keys(_this.optionpresets['default']);
+		for(var k=0; k<ok.length; k++){
+			if(!options.hasOwnProperty(ok[k])){ options[ok[k]] = _this.optionpresets['default'][ok[k]]; }
+		}
+		// options.pal is not defined here, the custom palette should be added externally: options.pal = [ { 'r':0, 'g':0, 'b':0, 'a':255 }, {...}, ... ];
+		// options.layercontainerid is not defined here, can be added externally: options.layercontainerid = 'mydiv'; ... <div id="mydiv"></div>
+		return options;
+	},// End of checkoptions()
+	
+	////////////////////////////////////////////////////////////
+	//
+	//  Vectorizing functions
+	//
+	////////////////////////////////////////////////////////////
+	
+	// 1. Color quantization
+	// Using a form of k-means clustering repeatead options.colorquantcycles times. http://en.wikipedia.org/wiki/Color_quantization
+	this.colorquantization = function( imgd, options ){
+		var arr = [], idx=0, cd,cdl,ci, paletteacc = [], pixelnum = imgd.width * imgd.height, i, j, k, cnt, palette;
+		
+		// imgd.data must be RGBA, not just RGB
+		if( imgd.data.length < pixelnum * 4 ){
+			var newimgddata = new Uint8ClampedArray(pixelnum * 4);
+			for(var pxcnt = 0; pxcnt < pixelnum ; pxcnt++){
+				newimgddata[pxcnt*4  ] = imgd.data[pxcnt*3  ];
+				newimgddata[pxcnt*4+1] = imgd.data[pxcnt*3+1];
+				newimgddata[pxcnt*4+2] = imgd.data[pxcnt*3+2];
+				newimgddata[pxcnt*4+3] = 255;
+			}
+			imgd.data = newimgddata;
+		}// End of RGBA imgd.data check
+		
+		// Filling arr (color index array) with -1
+		for( j=0; j<imgd.height+2; j++ ){ arr[j]=[]; for(i=0; i<imgd.width+2 ; i++){ arr[j][i] = -1; } }
+		
+		// Use custom palette if pal is defined or sample / generate custom length palette
+		if(options.pal){
+			palette = options.pal;
+		}else if(options.colorsampling === 0){
+			palette = _this.generatepalette(options.numberofcolors);
+		}else if(options.colorsampling === 1){
+			palette = _this.samplepalette( options.numberofcolors, imgd );
+		}else{
+			palette = _this.samplepalette2( options.numberofcolors, imgd );
+		}
+		
+		// Selective Gaussian blur preprocessing
+		if( options.blurradius > 0 ){ imgd = _this.blur( imgd, options.blurradius, options.blurdelta ); }
+		
+		// Repeat clustering step options.colorquantcycles times
+		for( cnt=0; cnt < options.colorquantcycles; cnt++ ){
+			
+			// Average colors from the second iteration
+			if(cnt>0){
+				// averaging paletteacc for palette
+				for( k=0; k < palette.length; k++ ){
+					
+					// averaging
+					if( paletteacc[k].n > 0 ){
+						palette[k] = {  r: Math.floor( paletteacc[k].r / paletteacc[k].n ),
+										g: Math.floor( paletteacc[k].g / paletteacc[k].n ),
+										b: Math.floor( paletteacc[k].b / paletteacc[k].n ),
+										a:  Math.floor( paletteacc[k].a / paletteacc[k].n ) };
+					}
+					
+					// Randomizing a color, if there are too few pixels and there will be a new cycle
+					if( ( paletteacc[k].n/pixelnum < options.mincolorratio ) && ( cnt < options.colorquantcycles-1 ) ){
+						palette[k] = {  r: Math.floor(Math.random()*255),
+										g: Math.floor(Math.random()*255),
+										b: Math.floor(Math.random()*255),
+										a: Math.floor(Math.random()*255) };
+					}
+					
+				}// End of palette loop
+			}// End of Average colors from the second iteration
+			
+			// Reseting palette accumulator for averaging
+			for( i=0; i < palette.length; i++ ){ paletteacc[i] = { r:0, g:0, b:0, a:0, n:0 }; }
+			
+			// loop through all pixels
+			for( j=0; j < imgd.height; j++ ){
+				for( i=0; i < imgd.width; i++ ){
+					
+					// pixel index
+					idx = (j*imgd.width+i)*4;
+					
+					// find closest color from palette by measuring (rectilinear) color distance between this pixel and all palette colors
+					ci=0; cdl = 1024; // 4 * 256 is the maximum RGBA distance
+					for( k=0; k<palette.length; k++ ){
+						
+						// In my experience, https://en.wikipedia.org/wiki/Rectilinear_distance works better than https://en.wikipedia.org/wiki/Euclidean_distance
+						cd = Math.abs(palette[k].r-imgd.data[idx]) + Math.abs(palette[k].g-imgd.data[idx+1]) + Math.abs(palette[k].b-imgd.data[idx+2]) + Math.abs(palette[k].a-imgd.data[idx+3]);
+						
+						// Remember this color if this is the closest yet
+						if(cd<cdl){ cdl = cd; ci = k; }
+						
+					}// End of palette loop
+					
+					// add to palettacc
+					paletteacc[ci].r += imgd.data[idx  ];
+					paletteacc[ci].g += imgd.data[idx+1];
+					paletteacc[ci].b += imgd.data[idx+2];
+					paletteacc[ci].a += imgd.data[idx+3];
+					paletteacc[ci].n++;
+					
+					// update the indexed color array
+					arr[j+1][i+1] = ci;
+					
+				}// End of i loop
+			}// End of j loop
+			
+		}// End of Repeat clustering step options.colorquantcycles times
+		
+		return { array:arr, palette:palette };
+		
+	},// End of colorquantization()
+	
+	// Sampling a palette from imagedata
+	this.samplepalette = function( numberofcolors, imgd ){
+		var idx, palette=[];
+		for(var i=0; i<numberofcolors; i++){
+			idx = Math.floor( Math.random() * imgd.data.length / 4 ) * 4;
+			palette.push({ r:imgd.data[idx  ], g:imgd.data[idx+1], b:imgd.data[idx+2], a:imgd.data[idx+3] });
+		}
+		return palette;
+	},// End of samplepalette()
+	
+	// Deterministic sampling a palette from imagedata: rectangular grid
+	this.samplepalette2 = function( numberofcolors, imgd ){
+		var idx, palette=[], ni = Math.ceil(Math.sqrt(numberofcolors)), nj = Math.ceil(numberofcolors/ni),
+			vx = imgd.width / (ni+1), vy = imgd.height / (nj+1);
+		for(var j=0; j<nj; j++){
+			for(var i=0; i<ni; i++){
+				if(palette.length === numberofcolors){
+					break;
+				}else{
+					idx = Math.floor( ((j+1)*vy) * imgd.width + ((i+1)*vx) ) * 4;
+					palette.push( { r:imgd.data[idx], g:imgd.data[idx+1], b:imgd.data[idx+2], a:imgd.data[idx+3] } );
+				}
+			}
+		}
+		return palette;
+	},// End of samplepalette2()
+	
+	// Generating a palette with numberofcolors
+	this.generatepalette = function(numberofcolors){
+		var palette = [], rcnt, gcnt, bcnt;
+		if(numberofcolors<8){
+			
+			// Grayscale
+			var graystep = Math.floor(255/(numberofcolors-1));
+			for(var i=0; i<numberofcolors; i++){ palette.push({ r:i*graystep, g:i*graystep, b:i*graystep, a:255 }); }
+			
+		}else{
+			
+			// RGB color cube
+			var colorqnum = Math.floor(Math.pow(numberofcolors, 1/3)), // Number of points on each edge on the RGB color cube
+				colorstep = Math.floor(255/(colorqnum-1)), // distance between points
+				rndnum = numberofcolors - colorqnum*colorqnum*colorqnum; // number of random colors
+			
+			for(rcnt=0; rcnt<colorqnum; rcnt++){
+				for(gcnt=0; gcnt<colorqnum; gcnt++){
+					for(bcnt=0; bcnt<colorqnum; bcnt++){
+						palette.push( { r:rcnt*colorstep, g:gcnt*colorstep, b:bcnt*colorstep, a:255 } );
+					}// End of blue loop
+				}// End of green loop
+			}// End of red loop
+			
+			// Rest is random
+			for(rcnt=0; rcnt<rndnum; rcnt++){ palette.push({ r:Math.floor(Math.random()*255), g:Math.floor(Math.random()*255), b:Math.floor(Math.random()*255), a:Math.floor(Math.random()*255) }); }
+
+		}// End of numberofcolors check
+		
+		return palette;
+	},// End of generatepalette()
+		
+	// 2. Layer separation and edge detection
+	// Edge node types ( ▓: this layer or 1; ░: not this layer or 0 )
+	// 12  ░░  ▓░  ░▓  ▓▓  ░░  ▓░  ░▓  ▓▓  ░░  ▓░  ░▓  ▓▓  ░░  ▓░  ░▓  ▓▓
+	// 48  ░░  ░░  ░░  ░░  ░▓  ░▓  ░▓  ░▓  ▓░  ▓░  ▓░  ▓░  ▓▓  ▓▓  ▓▓  ▓▓
+	//     0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15
+	this.layering = function(ii){
+		// Creating layers for each indexed color in arr
+		var layers = [], val=0, ah = ii.array.length, aw = ii.array[0].length, n1,n2,n3,n4,n5,n6,n7,n8, i, j, k;
+		
+		// Create layers
+		for(k=0; k<ii.palette.length; k++){
+			layers[k] = [];
+			for(j=0; j<ah; j++){
+				layers[k][j] = [];
+				for(i=0; i<aw; i++){
+					layers[k][j][i]=0;
+				}
+			}
+		}
+		
+		// Looping through all pixels and calculating edge node type
+		for(j=1; j<ah-1; j++){
+			for(i=1; i<aw-1; i++){
+				
+				// This pixel's indexed color
+				val = ii.array[j][i];
+				
+				// Are neighbor pixel colors the same?
+				n1 = ii.array[j-1][i-1]===val ? 1 : 0;
+				n2 = ii.array[j-1][i  ]===val ? 1 : 0;
+				n3 = ii.array[j-1][i+1]===val ? 1 : 0;
+				n4 = ii.array[j  ][i-1]===val ? 1 : 0;
+				n5 = ii.array[j  ][i+1]===val ? 1 : 0;
+				n6 = ii.array[j+1][i-1]===val ? 1 : 0;
+				n7 = ii.array[j+1][i  ]===val ? 1 : 0;
+				n8 = ii.array[j+1][i+1]===val ? 1 : 0;
+				
+				// this pixel's type and looking back on previous pixels
+				layers[val][j+1][i+1] = 1 + n5 * 2 + n8 * 4 + n7 * 8 ;
+				if(!n4){ layers[val][j+1][i  ] = 0 + 2 + n7 * 4 + n6 * 8 ; }
+				if(!n2){ layers[val][j  ][i+1] = 0 + n3*2 + n5 * 4 + 8 ; }
+				if(!n1){ layers[val][j  ][i  ] = 0 + n2*2 + 4 + n4 * 8 ; }
+				
+			}// End of i loop
+		}// End of j loop
+		
+		return layers;
+	},// End of layering()
+	
+	// 2. Layer separation and edge detection
+	// Edge node types ( ▓: this layer or 1; ░: not this layer or 0 )
+	// 12  ░░  ▓░  ░▓  ▓▓  ░░  ▓░  ░▓  ▓▓  ░░  ▓░  ░▓  ▓▓  ░░  ▓░  ░▓  ▓▓
+	// 48  ░░  ░░  ░░  ░░  ░▓  ░▓  ░▓  ░▓  ▓░  ▓░  ▓░  ▓░  ▓▓  ▓▓  ▓▓  ▓▓
+	//     0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15
+	this.layeringstep = function(ii,cnum){
+		// Creating layers for each indexed color in arr
+		var layer = [], val=0, ah = ii.array.length, aw = ii.array[0].length, n1,n2,n3,n4,n5,n6,n7,n8, i, j, k;
+		
+		// Create layer
+		for(j=0; j<ah; j++){
+			layer[j] = [];
+			for(i=0; i<aw; i++){
+				layer[j][i]=0;
+			}
+		}
+		
+		// Looping through all pixels and calculating edge node type
+		for(j=1; j<ah; j++){
+			for(i=1; i<aw; i++){
+				layer[j][i] =
+					( ii.array[j-1][i-1]===cnum ? 1 : 0 ) +
+					( ii.array[j-1][i]===cnum ? 2 : 0 ) +
+					( ii.array[j][i-1]===cnum ? 8 : 0 ) +
+					( ii.array[j][i]===cnum ? 4 : 0 )
+				;
+			}// End of i loop
+		}// End of j loop
+			
+		return layer;
+	},// End of layeringstep()
+	
+	// Point in polygon test
+	this.pointinpoly = function( p, pa ){
+		var isin=false;
+
+		for(var i=0,j=pa.length-1; i<pa.length; j=i++){
+			isin =
+				( ((pa[i].y > p.y) !== (pa[j].y > p.y)) && (p.x < (pa[j].x - pa[i].x) * (p.y - pa[i].y) / (pa[j].y - pa[i].y) + pa[i].x) )
+				? !isin : isin;
+		}
+
+		return isin;
+	},
+	
+	// Lookup tables for pathscan
+	// pathscan_combined_lookup[ arr[py][px] ][ dir ] = [nextarrpypx, nextdir, deltapx, deltapy];
+	this.pathscan_combined_lookup = [
+		[[-1,-1,-1,-1], [-1,-1,-1,-1], [-1,-1,-1,-1], [-1,-1,-1,-1]],// arr[py][px]===0 is invalid
+		[[ 0, 1, 0,-1], [-1,-1,-1,-1], [-1,-1,-1,-1], [ 0, 2,-1, 0]],
+		[[-1,-1,-1,-1], [-1,-1,-1,-1], [ 0, 1, 0,-1], [ 0, 0, 1, 0]],
+		[[ 0, 0, 1, 0], [-1,-1,-1,-1], [ 0, 2,-1, 0], [-1,-1,-1,-1]],
+		
+		[[-1,-1,-1,-1], [ 0, 0, 1, 0], [ 0, 3, 0, 1], [-1,-1,-1,-1]],
+		[[13, 3, 0, 1], [13, 2,-1, 0], [ 7, 1, 0,-1], [ 7, 0, 1, 0]],
+		[[-1,-1,-1,-1], [ 0, 1, 0,-1], [-1,-1,-1,-1], [ 0, 3, 0, 1]],
+		[[ 0, 3, 0, 1], [ 0, 2,-1, 0], [-1,-1,-1,-1], [-1,-1,-1,-1]],
+		
+		[[ 0, 3, 0, 1], [ 0, 2,-1, 0], [-1,-1,-1,-1], [-1,-1,-1,-1]],
+		[[-1,-1,-1,-1], [ 0, 1, 0,-1], [-1,-1,-1,-1], [ 0, 3, 0, 1]],
+		[[11, 1, 0,-1], [14, 0, 1, 0], [14, 3, 0, 1], [11, 2,-1, 0]],
+		[[-1,-1,-1,-1], [ 0, 0, 1, 0], [ 0, 3, 0, 1], [-1,-1,-1,-1]],
+		
+		[[ 0, 0, 1, 0], [-1,-1,-1,-1], [ 0, 2,-1, 0], [-1,-1,-1,-1]],
+		[[-1,-1,-1,-1], [-1,-1,-1,-1], [ 0, 1, 0,-1], [ 0, 0, 1, 0]],
+		[[ 0, 1, 0,-1], [-1,-1,-1,-1], [-1,-1,-1,-1], [ 0, 2,-1, 0]],
+		[[-1,-1,-1,-1], [-1,-1,-1,-1], [-1,-1,-1,-1], [-1,-1,-1,-1]]// arr[py][px]===15 is invalid
+	],
+
+	// 3. Walking through an edge node array, discarding edge node types 0 and 15 and creating paths from the rest.
+	// Walk directions (dir): 0 > ; 1 ^ ; 2 < ; 3 v 
+	this.pathscan = function( arr, pathomit ){
+		var paths=[], pacnt=0, pcnt=0, px=0, py=0, w = arr[0].length, h = arr.length,
+			dir=0, pathfinished=true, holepath=false, lookuprow;
+		
+		for(var j=0; j<h; j++){
+			for(var i=0; i<w; i++){
+				if( (arr[j][i] == 4) || ( arr[j][i] == 11) ){ // Other values are not valid
+					
+					// Init
+					px = i; py = j;
+					paths[pacnt] = {};
+					paths[pacnt].points = [];
+					paths[pacnt].boundingbox = [px,py,px,py];
+					paths[pacnt].holechildren = [];
+					pathfinished = false;
+					pcnt=0;
+					holepath = (arr[j][i]==11);
+					dir = 1;
+
+					// Path points loop
+					while(!pathfinished){
+						
+						// New path point
+						paths[pacnt].points[pcnt] = {};
+						paths[pacnt].points[pcnt].x = px-1;
+						paths[pacnt].points[pcnt].y = py-1;
+						paths[pacnt].points[pcnt].t = arr[py][px];
+						
+						// Bounding box
+						if( (px-1) < paths[pacnt].boundingbox[0] ){ paths[pacnt].boundingbox[0] = px-1; }
+						if( (px-1) > paths[pacnt].boundingbox[2] ){ paths[pacnt].boundingbox[2] = px-1; }
+						if( (py-1) < paths[pacnt].boundingbox[1] ){ paths[pacnt].boundingbox[1] = py-1; }
+						if( (py-1) > paths[pacnt].boundingbox[3] ){ paths[pacnt].boundingbox[3] = py-1; }
+						
+						// Next: look up the replacement, direction and coordinate changes = clear this cell, turn if required, walk forward
+						lookuprow = _this.pathscan_combined_lookup[ arr[py][px] ][ dir ];
+						arr[py][px] = lookuprow[0]; dir = lookuprow[1]; px += lookuprow[2]; py += lookuprow[3];
+
+						// Close path
+						if( (px-1 === paths[pacnt].points[0].x ) && ( py-1 === paths[pacnt].points[0].y ) ){
+							pathfinished = true;
+							
+							// Discarding paths shorter than pathomit
+							if( paths[pacnt].points.length < pathomit ){
+								paths.pop();
+							}else{
+							
+								paths[pacnt].isholepath = holepath ? true : false;
+								
+								// Finding the parent shape for this hole
+								if(holepath){
+									
+									var parentidx = 0, parentbbox = [-1,-1,w+1,h+1];
+									for(var parentcnt=0; parentcnt < pacnt; parentcnt++){
+										if( (!paths[parentcnt].isholepath) &&
+											_this.boundingboxincludes( paths[parentcnt].boundingbox , paths[pacnt].boundingbox ) &&
+											_this.boundingboxincludes( parentbbox , paths[parentcnt].boundingbox ) &&
+											_this.pointinpoly( paths[pacnt].points[0], paths[parentcnt].points )
+										){
+											parentidx = parentcnt;
+											parentbbox = paths[parentcnt].boundingbox;
+										}
+									}
+									
+									paths[parentidx].holechildren.push( pacnt );
+									
+								}// End of holepath parent finding
+								
+								pacnt++;
+							
+							}
+							
+						}// End of Close path
+						
+						pcnt++;
+						
+					}// End of Path points loop
+					
+				}// End of Follow path
+				
+			}// End of i loop
+		}// End of j loop
+		
+		return paths;
+	},// End of pathscan()
+	
+	this.boundingboxincludes = function( parentbbox, childbbox ){
+		return ( ( parentbbox[0] < childbbox[0] ) && ( parentbbox[1] < childbbox[1] ) && ( parentbbox[2] > childbbox[2] ) && ( parentbbox[3] > childbbox[3] ) );
+	},// End of boundingboxincludes()
+	
+	// 3. Batch pathscan
+	this.batchpathscan = function( layers, pathomit ){
+		var bpaths = [];
+		for(var k in layers){
+			if(!layers.hasOwnProperty(k)){ continue; }
+			bpaths[k] = _this.pathscan( layers[k], pathomit );
+		}
+		return bpaths;
+	},
+	
+	// 4. interpollating between path points for nodes with 8 directions ( East, SouthEast, S, SW, W, NW, N, NE )
+	this.internodes = function( paths, options ){
+		var ins = [], palen=0, nextidx=0, nextidx2=0, previdx=0, previdx2=0, pacnt, pcnt;
+		
+		// paths loop
+		for(pacnt=0; pacnt<paths.length; pacnt++){
+			
+			ins[pacnt] = {};
+			ins[pacnt].points = [];
+			ins[pacnt].boundingbox = paths[pacnt].boundingbox;
+			ins[pacnt].holechildren = paths[pacnt].holechildren;
+			ins[pacnt].isholepath = paths[pacnt].isholepath;
+			palen = paths[pacnt].points.length;
+			
+			// pathpoints loop
+			for(pcnt=0; pcnt<palen; pcnt++){
+			
+				// next and previous point indexes
+				nextidx = (pcnt+1)%palen; nextidx2 = (pcnt+2)%palen; previdx = (pcnt-1+palen)%palen; previdx2 = (pcnt-2+palen)%palen;
+				
+				// right angle enhance
+				if( options.rightangleenhance && _this.testrightangle( paths[pacnt], previdx2, previdx, pcnt, nextidx, nextidx2 ) ){
+					
+					// Fix previous direction
+					if(ins[pacnt].points.length > 0){
+						ins[pacnt].points[ ins[pacnt].points.length-1 ].linesegment = _this.getdirection(
+								ins[pacnt].points[ ins[pacnt].points.length-1 ].x,
+								ins[pacnt].points[ ins[pacnt].points.length-1 ].y,
+								paths[pacnt].points[pcnt].x,
+								paths[pacnt].points[pcnt].y
+							);
+					}
+					
+					// This corner point
+					ins[pacnt].points.push({
+						x : paths[pacnt].points[pcnt].x,
+						y : paths[pacnt].points[pcnt].y,
+						linesegment : _this.getdirection(
+								paths[pacnt].points[pcnt].x,
+								paths[pacnt].points[pcnt].y,
+								(( paths[pacnt].points[pcnt].x + paths[pacnt].points[nextidx].x ) /2),
+								(( paths[pacnt].points[pcnt].y + paths[pacnt].points[nextidx].y ) /2)
+							)
+					});
+					
+				}// End of right angle enhance
+				
+				// interpolate between two path points
+				ins[pacnt].points.push({
+					x : (( paths[pacnt].points[pcnt].x + paths[pacnt].points[nextidx].x ) /2),
+					y : (( paths[pacnt].points[pcnt].y + paths[pacnt].points[nextidx].y ) /2),
+					linesegment : _this.getdirection(
+							(( paths[pacnt].points[pcnt].x + paths[pacnt].points[nextidx].x ) /2),
+							(( paths[pacnt].points[pcnt].y + paths[pacnt].points[nextidx].y ) /2),
+							(( paths[pacnt].points[nextidx].x + paths[pacnt].points[nextidx2].x ) /2),
+							(( paths[pacnt].points[nextidx].y + paths[pacnt].points[nextidx2].y ) /2)
+						)
+				});
+				
+			}// End of pathpoints loop
+						
+		}// End of paths loop
+		
+		return ins;
+	},// End of internodes()
+	
+	this.testrightangle = function( path, idx1, idx2, idx3, idx4, idx5 ){
+		return ( (( path.points[idx3].x === path.points[idx1].x) &&
+				  ( path.points[idx3].x === path.points[idx2].x) &&
+				  ( path.points[idx3].y === path.points[idx4].y) &&
+				  ( path.points[idx3].y === path.points[idx5].y)
+				 ) ||
+				 (( path.points[idx3].y === path.points[idx1].y) &&
+				  ( path.points[idx3].y === path.points[idx2].y) &&
+				  ( path.points[idx3].x === path.points[idx4].x) &&
+				  ( path.points[idx3].x === path.points[idx5].x)
+				 )
+		);
+	},// End of testrightangle()
+	
+	this.getdirection = function( x1, y1, x2, y2 ){
+		var val = 8;
+		if(x1 < x2){
+			if     (y1 < y2){ val = 1; }// SouthEast
+			else if(y1 > y2){ val = 7; }// NE
+			else            { val = 0; }// E
+		}else if(x1 > x2){
+			if     (y1 < y2){ val = 3; }// SW
+			else if(y1 > y2){ val = 5; }// NW
+			else            { val = 4; }// W
+		}else{
+			if     (y1 < y2){ val = 2; }// S
+			else if(y1 > y2){ val = 6; }// N
+			else            { val = 8; }// center, this should not happen
+		}
+		return val;
+	},// End of getdirection()
+	
+	// 4. Batch interpollation
+	this.batchinternodes = function( bpaths, options ){
+		var binternodes = [];
+		for (var k in bpaths) {
+			if(!bpaths.hasOwnProperty(k)){ continue; }
+			binternodes[k] = _this.internodes(bpaths[k], options);
+		}
+		return binternodes;
+	},
+	
+	// 5. tracepath() : recursively trying to fit straight and quadratic spline segments on the 8 direction internode path
+	
+	// 5.1. Find sequences of points with only 2 segment types
+	// 5.2. Fit a straight line on the sequence
+	// 5.3. If the straight line fails (distance error > ltres), find the point with the biggest error
+	// 5.4. Fit a quadratic spline through errorpoint (project this to get controlpoint), then measure errors on every point in the sequence
+	// 5.5. If the spline fails (distance error > qtres), find the point with the biggest error, set splitpoint = fitting point
+	// 5.6. Split sequence and recursively apply 5.2. - 5.6. to startpoint-splitpoint and splitpoint-endpoint sequences
+	
+	this.tracepath = function( path, ltres, qtres ){
+		var pcnt=0, segtype1, segtype2, seqend, smp = {};
+		smp.segments = [];
+		smp.boundingbox = path.boundingbox;
+		smp.holechildren = path.holechildren;
+		smp.isholepath = path.isholepath;
+		
+		while(pcnt < path.points.length){
+			// 5.1. Find sequences of points with only 2 segment types
+			segtype1 = path.points[pcnt].linesegment; segtype2 = -1; seqend=pcnt+1;
+			while(
+				((path.points[seqend].linesegment === segtype1) || (path.points[seqend].linesegment === segtype2) || (segtype2 === -1))
+				&& (seqend < path.points.length-1) ){
+				
+				if((path.points[seqend].linesegment!==segtype1) && (segtype2===-1)){ segtype2 = path.points[seqend].linesegment; }
+				seqend++;
+				
+			}
+			if(seqend === path.points.length-1){ seqend = 0; }
+
+			// 5.2. - 5.6. Split sequence and recursively apply 5.2. - 5.6. to startpoint-splitpoint and splitpoint-endpoint sequences
+			smp.segments = smp.segments.concat( _this.fitseq(path, ltres, qtres, pcnt, seqend) );
+			
+			// forward pcnt;
+			if(seqend>0){ pcnt = seqend; }else{ pcnt = path.points.length; }
+			
+		}// End of pcnt loop
+		
+		return smp;
+	},// End of tracepath()
+		
+	// 5.2. - 5.6. recursively fitting a straight or quadratic line segment on this sequence of path nodes,
+	// called from tracepath()
+	this.fitseq = function( path, ltres, qtres, seqstart, seqend ){
+		// return if invalid seqend
+		if( (seqend>path.points.length) || (seqend<0) ){ return []; }
+		// variables
+		var errorpoint=seqstart, errorval=0, curvepass=true, px, py, dist2;
+		var tl = (seqend-seqstart); if(tl<0){ tl += path.points.length; }
+		var vx = (path.points[seqend].x-path.points[seqstart].x) / tl,
+			vy = (path.points[seqend].y-path.points[seqstart].y) / tl;
+		
+		// 5.2. Fit a straight line on the sequence
+		var pcnt = (seqstart+1) % path.points.length, pl;
+		while(pcnt != seqend){
+			pl = pcnt-seqstart; if(pl<0){ pl += path.points.length; }
+			px = path.points[seqstart].x + vx * pl; py = path.points[seqstart].y + vy * pl;
+			dist2 = (path.points[pcnt].x-px)*(path.points[pcnt].x-px) + (path.points[pcnt].y-py)*(path.points[pcnt].y-py);
+			if(dist2>ltres){curvepass=false;}
+			if(dist2>errorval){ errorpoint=pcnt; errorval=dist2; }
+			pcnt = (pcnt+1)%path.points.length;
+		}
+		// return straight line if fits
+		if(curvepass){ return [{ type:'L', x1:path.points[seqstart].x, y1:path.points[seqstart].y, x2:path.points[seqend].x, y2:path.points[seqend].y }]; }
+		
+		// 5.3. If the straight line fails (distance error>ltres), find the point with the biggest error
+		var fitpoint = errorpoint; curvepass = true; errorval = 0;
+		
+		// 5.4. Fit a quadratic spline through this point, measure errors on every point in the sequence
+		// helpers and projecting to get control point
+		var t=(fitpoint-seqstart)/tl, t1=(1-t)*(1-t), t2=2*(1-t)*t, t3=t*t;
+		var cpx = (t1*path.points[seqstart].x + t3*path.points[seqend].x - path.points[fitpoint].x)/-t2 ,
+			cpy = (t1*path.points[seqstart].y + t3*path.points[seqend].y - path.points[fitpoint].y)/-t2 ;
+		
+		// Check every point
+		pcnt = seqstart+1;
+		while(pcnt != seqend){
+			t=(pcnt-seqstart)/tl; t1=(1-t)*(1-t); t2=2*(1-t)*t; t3=t*t;
+			px = t1 * path.points[seqstart].x + t2 * cpx + t3 * path.points[seqend].x;
+			py = t1 * path.points[seqstart].y + t2 * cpy + t3 * path.points[seqend].y;
+			
+			dist2 = (path.points[pcnt].x-px)*(path.points[pcnt].x-px) + (path.points[pcnt].y-py)*(path.points[pcnt].y-py);
+			
+			if(dist2>qtres){curvepass=false;}
+			if(dist2>errorval){ errorpoint=pcnt; errorval=dist2; }
+			pcnt = (pcnt+1)%path.points.length;
+		}
+		// return spline if fits
+		if(curvepass){ return [{ type:'Q', x1:path.points[seqstart].x, y1:path.points[seqstart].y, x2:cpx, y2:cpy, x3:path.points[seqend].x, y3:path.points[seqend].y }]; }
+		// 5.5. If the spline fails (distance error>qtres), find the point with the biggest error
+		var splitpoint = fitpoint; // Earlier: Math.floor((fitpoint + errorpoint)/2);
+		
+		// 5.6. Split sequence and recursively apply 5.2. - 5.6. to startpoint-splitpoint and splitpoint-endpoint sequences
+		return _this.fitseq( path, ltres, qtres, seqstart, splitpoint ).concat(
+				_this.fitseq( path, ltres, qtres, splitpoint, seqend ) );
+		
+	},// End of fitseq()
+	
+	// 5. Batch tracing paths
+	this.batchtracepaths = function(internodepaths,ltres,qtres){
+		var btracedpaths = [];
+		for(var k in internodepaths){
+			if(!internodepaths.hasOwnProperty(k)){ continue; }
+			btracedpaths.push( _this.tracepath(internodepaths[k],ltres,qtres) );
+		}
+		return btracedpaths;
+	},
+	
+	// 5. Batch tracing layers
+	this.batchtracelayers = function(binternodes, ltres, qtres){
+		var btbis = [];
+		for(var k in binternodes){
+			if(!binternodes.hasOwnProperty(k)){ continue; }
+			btbis[k] = _this.batchtracepaths(binternodes[k], ltres, qtres);
+		}
+		return btbis;
+	},
+	
+	////////////////////////////////////////////////////////////
+	//
+	//  SVG Drawing functions
+	//
+	////////////////////////////////////////////////////////////
+	
+	// Rounding to given decimals https://stackoverflow.com/questions/11832914/round-to-at-most-2-decimal-places-in-javascript
+	this.roundtodec = function(val,places){ return +val.toFixed(places); },
+	
+	// Getting SVG path element string from a traced path
+	this.svgpathstring = function( tracedata, lnum, pathnum, options ){
+		
+		var layer = tracedata.layers[lnum], smp = layer[pathnum], str='', pcnt;
+		
+		// Line filter
+		if(options.linefilter && (smp.segments.length < 3)){ return str; }
+		
+		// Starting path element, desc contains layer and path number
+		str = '<path '+
+			( options.desc ? ('desc="l '+lnum+' p '+pathnum+'" ') : '' ) +
+			_this.tosvgcolorstr(tracedata.palette[lnum], options) +
+			'd="';
+		
+		// Creating non-hole path string
+		if( options.roundcoords === -1 ){
+			str += 'M '+ smp.segments[0].x1 * options.scale +' '+ smp.segments[0].y1 * options.scale +' ';
+			for(pcnt=0; pcnt<smp.segments.length; pcnt++){
+				str += smp.segments[pcnt].type +' '+ smp.segments[pcnt].x2 * options.scale +' '+ smp.segments[pcnt].y2 * options.scale +' ';
+				if(smp.segments[pcnt].hasOwnProperty('x3')){
+					str += smp.segments[pcnt].x3 * options.scale +' '+ smp.segments[pcnt].y3 * options.scale +' ';
+				}
+			}
+			str += 'Z ';
+		}else{
+			str += 'M '+ _this.roundtodec( smp.segments[0].x1 * options.scale, options.roundcoords ) +' '+ _this.roundtodec( smp.segments[0].y1 * options.scale, options.roundcoords ) +' ';
+			for(pcnt=0; pcnt<smp.segments.length; pcnt++){
+				str += smp.segments[pcnt].type +' '+ _this.roundtodec( smp.segments[pcnt].x2 * options.scale, options.roundcoords ) +' '+ _this.roundtodec( smp.segments[pcnt].y2 * options.scale, options.roundcoords ) +' ';
+				if(smp.segments[pcnt].hasOwnProperty('x3')){
+					str += _this.roundtodec( smp.segments[pcnt].x3 * options.scale, options.roundcoords ) +' '+ _this.roundtodec( smp.segments[pcnt].y3 * options.scale, options.roundcoords ) +' ';
+				}
+			}
+			str += 'Z ';
+		}// End of creating non-hole path string
+		
+		// Hole children
+		for( var hcnt=0; hcnt < smp.holechildren.length; hcnt++){
+			var hsmp = layer[ smp.holechildren[hcnt] ];
+			// Creating hole path string
+			if( options.roundcoords === -1 ){
+				
+				if(hsmp.segments[ hsmp.segments.length-1 ].hasOwnProperty('x3')){
+					str += 'M '+ hsmp.segments[ hsmp.segments.length-1 ].x3 * options.scale +' '+ hsmp.segments[ hsmp.segments.length-1 ].y3 * options.scale +' ';
+				}else{
+					str += 'M '+ hsmp.segments[ hsmp.segments.length-1 ].x2 * options.scale +' '+ hsmp.segments[ hsmp.segments.length-1 ].y2 * options.scale +' ';
+				}
+				
+				for(pcnt = hsmp.segments.length-1; pcnt >= 0; pcnt--){
+					str += hsmp.segments[pcnt].type +' ';
+					if(hsmp.segments[pcnt].hasOwnProperty('x3')){
+						str += hsmp.segments[pcnt].x2 * options.scale +' '+ hsmp.segments[pcnt].y2 * options.scale +' ';
+					}
+					
+					str += hsmp.segments[pcnt].x1 * options.scale +' '+ hsmp.segments[pcnt].y1 * options.scale +' ';
+				}
+				
+			}else{
+				
+				if(hsmp.segments[ hsmp.segments.length-1 ].hasOwnProperty('x3')){
+					str += 'M '+ _this.roundtodec( hsmp.segments[ hsmp.segments.length-1 ].x3 * options.scale ) +' '+ _this.roundtodec( hsmp.segments[ hsmp.segments.length-1 ].y3 * options.scale ) +' ';
+				}else{
+					str += 'M '+ _this.roundtodec( hsmp.segments[ hsmp.segments.length-1 ].x2 * options.scale ) +' '+ _this.roundtodec( hsmp.segments[ hsmp.segments.length-1 ].y2 * options.scale ) +' ';
+				}
+				
+				for(pcnt = hsmp.segments.length-1; pcnt >= 0; pcnt--){
+					str += hsmp.segments[pcnt].type +' ';
+					if(hsmp.segments[pcnt].hasOwnProperty('x3')){
+						str += _this.roundtodec( hsmp.segments[pcnt].x2 * options.scale ) +' '+ _this.roundtodec( hsmp.segments[pcnt].y2 * options.scale ) +' ';
+					}
+					str += _this.roundtodec( hsmp.segments[pcnt].x1 * options.scale ) +' '+ _this.roundtodec( hsmp.segments[pcnt].y1 * options.scale ) +' ';
+				}
+				
+				
+			}// End of creating hole path string
+			
+			str += 'Z '; // Close path
+			
+		}// End of holepath check
+		
+		// Closing path element
+		str += '" />';
+		
+		// Rendering control points
+		if(options.lcpr || options.qcpr){
+			for(pcnt=0; pcnt<smp.segments.length; pcnt++){
+				if( smp.segments[pcnt].hasOwnProperty('x3') && options.qcpr ){
+					str += '<circle cx="'+ smp.segments[pcnt].x2 * options.scale +'" cy="'+ smp.segments[pcnt].y2 * options.scale +'" r="'+ options.qcpr +'" fill="cyan" stroke-width="'+ options.qcpr * 0.2 +'" stroke="black" />';
+					str += '<circle cx="'+ smp.segments[pcnt].x3 * options.scale +'" cy="'+ smp.segments[pcnt].y3 * options.scale +'" r="'+ options.qcpr +'" fill="white" stroke-width="'+ options.qcpr * 0.2 +'" stroke="black" />';
+					str += '<line x1="'+ smp.segments[pcnt].x1 * options.scale +'" y1="'+ smp.segments[pcnt].y1 * options.scale +'" x2="'+ smp.segments[pcnt].x2 * options.scale +'" y2="'+ smp.segments[pcnt].y2 * options.scale +'" stroke-width="'+ options.qcpr * 0.2 +'" stroke="cyan" />';
+					str += '<line x1="'+ smp.segments[pcnt].x2 * options.scale +'" y1="'+ smp.segments[pcnt].y2 * options.scale +'" x2="'+ smp.segments[pcnt].x3 * options.scale +'" y2="'+ smp.segments[pcnt].y3 * options.scale +'" stroke-width="'+ options.qcpr * 0.2 +'" stroke="cyan" />';
+				}
+				if( (!smp.segments[pcnt].hasOwnProperty('x3')) && options.lcpr){
+					str += '<circle cx="'+ smp.segments[pcnt].x2 * options.scale +'" cy="'+ smp.segments[pcnt].y2 * options.scale +'" r="'+ options.lcpr +'" fill="white" stroke-width="'+ options.lcpr * 0.2 +'" stroke="black" />';
+				}
+			}
+			
+			// Hole children control points
+			for( var hcnt=0; hcnt < smp.holechildren.length; hcnt++){
+				var hsmp = layer[ smp.holechildren[hcnt] ];
+				for(pcnt=0; pcnt<hsmp.segments.length; pcnt++){
+					if( hsmp.segments[pcnt].hasOwnProperty('x3') && options.qcpr ){
+						str += '<circle cx="'+ hsmp.segments[pcnt].x2 * options.scale +'" cy="'+ hsmp.segments[pcnt].y2 * options.scale +'" r="'+ options.qcpr +'" fill="cyan" stroke-width="'+ options.qcpr * 0.2 +'" stroke="black" />';
+						str += '<circle cx="'+ hsmp.segments[pcnt].x3 * options.scale +'" cy="'+ hsmp.segments[pcnt].y3 * options.scale +'" r="'+ options.qcpr +'" fill="white" stroke-width="'+ options.qcpr * 0.2 +'" stroke="black" />';
+						str += '<line x1="'+ hsmp.segments[pcnt].x1 * options.scale +'" y1="'+ hsmp.segments[pcnt].y1 * options.scale +'" x2="'+ hsmp.segments[pcnt].x2 * options.scale +'" y2="'+ hsmp.segments[pcnt].y2 * options.scale +'" stroke-width="'+ options.qcpr * 0.2 +'" stroke="cyan" />';
+						str += '<line x1="'+ hsmp.segments[pcnt].x2 * options.scale +'" y1="'+ hsmp.segments[pcnt].y2 * options.scale +'" x2="'+ hsmp.segments[pcnt].x3 * options.scale +'" y2="'+ hsmp.segments[pcnt].y3 * options.scale +'" stroke-width="'+ options.qcpr * 0.2 +'" stroke="cyan" />';
+					}
+					if( (!hsmp.segments[pcnt].hasOwnProperty('x3')) && options.lcpr){
+						str += '<circle cx="'+ hsmp.segments[pcnt].x2 * options.scale +'" cy="'+ hsmp.segments[pcnt].y2 * options.scale +'" r="'+ options.lcpr +'" fill="white" stroke-width="'+ options.lcpr * 0.2 +'" stroke="black" />';
+					}
+				}
+			}
+		}// End of Rendering control points
+			
+		return str;
+		
+	},// End of svgpathstring()
+	
+	// Converting tracedata to an SVG string
+	this.getsvgstring = function( tracedata, options ){
+		
+		options = _this.checkoptions(options);
+		
+		var w = tracedata.width * options.scale, h = tracedata.height * options.scale;
+		
+		// SVG start
+		var svgstr = '<svg ' + (options.viewbox ? ('viewBox="0 0 '+w+' '+h+'" ') : ('width="'+w+'" height="'+h+'" ')) +
+			'version="1.1" xmlns="http://www.w3.org/2000/svg" desc="Created with imagetracer.js version '+_this.versionnumber+'" >';
+
+		// Drawing: Layers and Paths loops
+		for(var lcnt=0; lcnt < tracedata.layers.length; lcnt++){
+			for(var pcnt=0; pcnt < tracedata.layers[lcnt].length; pcnt++){
+				
+				// Adding SVG <path> string
+				if( !tracedata.layers[lcnt][pcnt].isholepath ){
+					svgstr += _this.svgpathstring( tracedata, lcnt, pcnt, options );
+				}
+					
+			}// End of paths loop
+		}// End of layers loop
+		
+		// SVG End
+		svgstr+='</svg>';
+		
+		return svgstr;
+		
+	},// End of getsvgstring()
+	
+	// Comparator for numeric Array.sort
+	this.compareNumbers = function(a,b){ return a - b; },
+	
+	// Convert color object to rgba string
+	this.torgbastr = function(c){ return 'rgba('+c.r+','+c.g+','+c.b+','+c.a+')'; },
+	
+	// Convert color object to SVG color string
+	this.tosvgcolorstr = function(c, options){
+		return 'fill="rgb('+c.r+','+c.g+','+c.b+')" stroke="rgb('+c.r+','+c.g+','+c.b+')" stroke-width="'+options.strokewidth+'" opacity="'+c.a/255.0+'" ';
+	},
+	
+	// Helper function: Appending an <svg> element to a container from an svgstring
+	this.appendSVGString = function(svgstr,parentid){
+		var div;
+		if(parentid){
+			div = document.getElementById(parentid);
+			if(!div){
+				div = document.createElement('div');
+				div.id = parentid;
+				document.body.appendChild(div);
+			}
+		}else{
+			div = document.createElement('div');
+			document.body.appendChild(div);
+		}
+		div.innerHTML += svgstr;
+	},
+	
+	////////////////////////////////////////////////////////////
+	//
+	//  Canvas functions
+	//
+	////////////////////////////////////////////////////////////
+	
+	// Gaussian kernels for blur
+	this.gks = [ [0.27901,0.44198,0.27901], [0.135336,0.228569,0.272192,0.228569,0.135336], [0.086776,0.136394,0.178908,0.195843,0.178908,0.136394,0.086776],
+	             [0.063327,0.093095,0.122589,0.144599,0.152781,0.144599,0.122589,0.093095,0.063327], [0.049692,0.069304,0.089767,0.107988,0.120651,0.125194,0.120651,0.107988,0.089767,0.069304,0.049692] ],
+	
+	// Selective Gaussian blur for preprocessing
+	this.blur = function(imgd,radius,delta){
+		var i,j,k,d,idx,racc,gacc,bacc,aacc,wacc;
+		
+		// new ImageData
+		var imgd2 = { width:imgd.width, height:imgd.height, data:[] };
+		
+		// radius and delta limits, this kernel
+		radius = Math.floor(radius); if(radius<1){ return imgd; } if(radius>5){ radius = 5; } delta = Math.abs( delta ); if(delta>1024){ delta = 1024; }
+		var thisgk = _this.gks[radius-1];
+		
+		// loop through all pixels, horizontal blur
+		for( j=0; j < imgd.height; j++ ){
+			for( i=0; i < imgd.width; i++ ){
+
+				racc = 0; gacc = 0; bacc = 0; aacc = 0; wacc = 0;
+				// gauss kernel loop
+				for( k = -radius; k < radius+1; k++){
+					// add weighted color values
+					if( (i+k > 0) && (i+k < imgd.width) ){
+						idx = (j*imgd.width+i+k)*4;
+						racc += imgd.data[idx  ] * thisgk[k+radius];
+						gacc += imgd.data[idx+1] * thisgk[k+radius];
+						bacc += imgd.data[idx+2] * thisgk[k+radius];
+						aacc += imgd.data[idx+3] * thisgk[k+radius];
+						wacc += thisgk[k+radius];
+					}
+				}
+				// The new pixel
+				idx = (j*imgd.width+i)*4;
+				imgd2.data[idx  ] = Math.floor(racc / wacc);
+				imgd2.data[idx+1] = Math.floor(gacc / wacc);
+				imgd2.data[idx+2] = Math.floor(bacc / wacc);
+				imgd2.data[idx+3] = Math.floor(aacc / wacc);
+				
+			}// End of width loop
+		}// End of horizontal blur
+		
+		// copying the half blurred imgd2
+		var himgd = new Uint8ClampedArray(imgd2.data);
+		
+		// loop through all pixels, vertical blur
+		for( j=0; j < imgd.height; j++ ){
+			for( i=0; i < imgd.width; i++ ){
+
+				racc = 0; gacc = 0; bacc = 0; aacc = 0; wacc = 0;
+				// gauss kernel loop
+				for( k = -radius; k < radius+1; k++){
+					// add weighted color values
+					if( (j+k > 0) && (j+k < imgd.height) ){
+						idx = ((j+k)*imgd.width+i)*4;
+						racc += himgd[idx  ] * thisgk[k+radius];
+						gacc += himgd[idx+1] * thisgk[k+radius];
+						bacc += himgd[idx+2] * thisgk[k+radius];
+						aacc += himgd[idx+3] * thisgk[k+radius];
+						wacc += thisgk[k+radius];
+					}
+				}
+				// The new pixel
+				idx = (j*imgd.width+i)*4;
+				imgd2.data[idx  ] = Math.floor(racc / wacc);
+				imgd2.data[idx+1] = Math.floor(gacc / wacc);
+				imgd2.data[idx+2] = Math.floor(bacc / wacc);
+				imgd2.data[idx+3] = Math.floor(aacc / wacc);
+				
+			}// End of width loop
+		}// End of vertical blur
+		
+		// Selective blur: loop through all pixels
+		for( j=0; j < imgd.height; j++ ){
+			for( i=0; i < imgd.width; i++ ){
+				
+				idx = (j*imgd.width+i)*4;
+				// d is the difference between the blurred and the original pixel
+				d = Math.abs(imgd2.data[idx  ] - imgd.data[idx  ]) + Math.abs(imgd2.data[idx+1] - imgd.data[idx+1]) +
+					Math.abs(imgd2.data[idx+2] - imgd.data[idx+2]) + Math.abs(imgd2.data[idx+3] - imgd.data[idx+3]);
+				// selective blur: if d>delta, put the original pixel back
+				if(d>delta){
+					imgd2.data[idx  ] = imgd.data[idx  ];
+					imgd2.data[idx+1] = imgd.data[idx+1];
+					imgd2.data[idx+2] = imgd.data[idx+2];
+					imgd2.data[idx+3] = imgd.data[idx+3];
+				}
+			}
+		}// End of Selective blur
+		
+		return imgd2;
+		
+	},// End of blur()
+	
+	// Helper function: loading an image from a URL, then executing callback with canvas as argument
+	this.loadImage = function(url,callback,options){
+		var img = new Image();
+		if(options && options.corsenabled){ img.crossOrigin = 'Anonymous'; }
+		img.onload = function(){
+			var canvas = document.createElement('canvas');
+			canvas.width = img.width;
+			canvas.height = img.height;
+			var context = canvas.getContext('2d');
+			context.drawImage(img,0,0);
+			callback(canvas);
+		};
+		img.src = url;
+	},
+	
+	// Helper function: getting ImageData from a canvas
+	this.getImgdata = function(canvas){
+		var context = canvas.getContext('2d');
+		return context.getImageData(0,0,canvas.width,canvas.height);
+	},
+	
+	// Special palette to use with drawlayers()
+	this.specpalette = [
+		{r:0,g:0,b:0,a:255}, {r:128,g:128,b:128,a:255}, {r:0,g:0,b:128,a:255}, {r:64,g:64,b:128,a:255},
+		{r:192,g:192,b:192,a:255}, {r:255,g:255,b:255,a:255}, {r:128,g:128,b:192,a:255}, {r:0,g:0,b:192,a:255},
+		{r:128,g:0,b:0,a:255}, {r:128,g:64,b:64,a:255}, {r:128,g:0,b:128,a:255}, {r:168,g:168,b:168,a:255},
+		{r:192,g:128,b:128,a:255}, {r:192,g:0,b:0,a:255}, {r:255,g:255,b:255,a:255}, {r:0,g:128,b:0,a:255}
+	],
+	
+	// Helper function: Drawing all edge node layers into a container
+	this.drawLayers = function(layers,palette,scale,parentid){
+		scale = scale||1;
+		var w,h,i,j,k;
+		
+		// Preparing container
+		var div;
+		if(parentid){
+			div = document.getElementById(parentid);
+			if(!div){
+				div = document.createElement('div');
+				div.id = parentid;
+				document.body.appendChild(div);
+			}
+		}else{
+			div = document.createElement('div');
+			document.body.appendChild(div);
+		}
+		
+		// Layers loop
+		for (k in layers) {
+			if(!layers.hasOwnProperty(k)){ continue; }
+			
+			// width, height
+			w=layers[k][0].length; h=layers[k].length;
+			
+			// Creating new canvas for every layer
+			var canvas = document.createElement('canvas'); canvas.width=w*scale; canvas.height=h*scale;
+			var context = canvas.getContext('2d');
+			
+			// Drawing
+			for(j=0; j<h; j++){
+				for(i=0; i<w; i++){
+					context.fillStyle = _this.torgbastr(palette[ layers[k][j][i]%palette.length ]);
+					context.fillRect(i*scale,j*scale,scale,scale);
+				}
+			}
+			
+			// Appending canvas to container
+			div.appendChild(canvas);
+		}// End of Layers loop
+	}// End of drawlayers
+	
+	;// End of function list
+	
+}// End of ImageTracer object
+
+// export as AMD module / Node module / browser or worker variable
+if(typeof define === 'function' && define.amd){
+	define(function() { return new ImageTracer(); });
+}else if(typeof module !== 'undefined'){
+	module.exports = new ImageTracer();
+}else if(typeof self !== 'undefined'){
+	self.ImageTracer = new ImageTracer();
+}else window.ImageTracer = new ImageTracer();
+
+})();
+</script>
+<script>
+(function(){
+  'use strict';
+
+  var MAX_DIM = 1600; // downscale huge images before tracing, keeps it fast
+
+  var state = {
+    mode: 'cor',
+    fileName: '',
+    fileSize: 0,
+    fileType: '',
+    origDataURL: '',
+    imgd: null,        // ImageData of the (possibly downscaled) source
+    resized: false,
+    svgString: '',
+    natW: 0, natH: 0,
+    autoContrast: null, // {lo, hi} luminance range, or null
+    geoEdit: false,
+    selectedPath: null
+  };
+
+  var drop = document.getElementById('drop');
+  var fileInput = document.getElementById('fileInput');
+  var fileMeta = document.getElementById('fileMeta');
+  var btnVectorize = document.getElementById('btnVectorize');
+  var resultArea = document.getElementById('resultArea');
+  var previewArea = document.getElementById('previewArea');
+  var previewCanvas = null;
+  var previewTimer = null;
+  var toastEl = document.getElementById('toast');
+
+  var colorsEl = document.getElementById('colors');
+  var colorsVal = document.getElementById('colorsVal');
+  var colorsField = document.getElementById('colorsField');
+  var threshEl = document.getElementById('threshold');
+  var threshVal = document.getElementById('threshVal');
+  var thresholdField = document.getElementById('thresholdField');
+  var pathsEl = document.getElementById('paths');
+  var pathsVal = document.getElementById('pathsVal');
+  var noiseEl = document.getElementById('noise');
+  var noiseVal = document.getElementById('noiseVal');
+  var blurEl = document.getElementById('blur');
+  var blurVal = document.getElementById('blurVal');
+  var contrastEl = document.getElementById('contrast');
+  var contrastVal = document.getElementById('contrastVal');
+  var brightnessEl = document.getElementById('brightness');
+  var brightnessVal = document.getElementById('brightnessVal');
+  var ignoreWhiteEl = document.getElementById('ignoreWhite');
+  var btnAutoContrast = document.getElementById('btnAutoContrast');
+  var removeBgEl = document.getElementById('removeBg');
+  var bgToleranceField = document.getElementById('bgToleranceField');
+  var bgToleranceEl = document.getElementById('bgTolerance');
+  var bgToleranceVal = document.getElementById('bgToleranceVal');
+
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('on');
+    clearTimeout(toastEl._t);
+    toastEl._t = setTimeout(function(){ toastEl.classList.remove('on'); }, 2800);
+  }
+
+  // ---- painéis: reorganizar (arrastar) e redimensionar (arrastar o canto) manualmente ----
+  (function initLayout(){
+    var board = document.getElementById('board');
+    var btnResetLayout = document.getElementById('btnResetLayout');
+    var btnAlignGrid = document.getElementById('btnAlignGrid');
+    var btnLockLayout = document.getElementById('btnLockLayout');
+    if(!board) return;
+    var LAYOUT_KEY = 'vetorizador:layout:v2';
+    var cards = Array.prototype.slice.call(board.querySelectorAll('.card'));
+    var isFreeform = window.matchMedia('(min-width:721px)').matches;
+    var zTop = 10;
+    var isLocked = false;
+
+    function readLayout(){
+      try{
+        var raw = localStorage.getItem(LAYOUT_KEY);
+        return raw ? JSON.parse(raw) : {};
+      }catch(e){ return {}; }
+    }
+    function writeLayout(data){
+      try{ localStorage.setItem(LAYOUT_KEY, JSON.stringify(data)); }catch(e){}
+    }
+    function savePosition(id, patch){
+      var data = readLayout();
+      data.positions = data.positions || {};
+      data.positions[id] = Object.assign({}, data.positions[id], patch);
+      writeLayout(data);
+    }
+
+    function fitBoardHeight(){
+      var maxBottom = 0;
+      cards.forEach(function(c){
+        var top = parseFloat(c.style.top) || 0;
+        var h = c.classList.contains('minimized') ? c.offsetHeight : (parseFloat(c.style.height) || c.offsetHeight);
+        maxBottom = Math.max(maxBottom, top + h);
+      });
+      board.style.height = (maxBottom + 24) + 'px';
+    }
+
+    function setLocked(v){
+      isLocked = v;
+      board.classList.toggle('locked', isLocked);
+      var data = readLayout();
+      data.locked = isLocked;
+      writeLayout(data);
+      if(btnLockLayout){
+        btnLockLayout.classList.toggle('on', isLocked);
+        btnLockLayout.textContent = isLocked ? '🔓 Desbloquear layout' : '🔒 Bloquear layout';
+      }
+    }
+
+    // Snap every panel into a tidy grid with a standard gap between them,
+    // keeping each panel's own current size and roughly the row order the
+    // user already arranged (grouped by vertical position, left to right
+    // within each row) — only the spacing is standardized, nothing resizes.
+    function alignGrid(){
+      if(!isFreeform || isLocked) return;
+      var GAP = 20;
+      var items = cards.map(function(c){
+        var r = c.getBoundingClientRect();
+        return { el: c, y: parseFloat(c.style.top) || 0, w: r.width, h: r.height };
+      }).sort(function(a, b){
+        var ay = a.y, by = b.y;
+        return ay - by || (a.el.getBoundingClientRect().x - b.el.getBoundingClientRect().x);
+      });
+
+      var rows = [];
+      var row = [];
+      var rowTop = 0, rowMaxH = 0;
+      items.forEach(function(it){
+        if(row.length && it.y >= rowTop + rowMaxH * 0.6){
+          rows.push(row);
+          row = []; rowMaxH = 0;
+        }
+        if(!row.length) rowTop = it.y;
+        rowMaxH = Math.max(rowMaxH, it.h);
+        row.push(it);
+      });
+      if(row.length) rows.push(row);
+
+      var curY = 0;
+      rows.forEach(function(r){
+        var curX = 0, maxH = 0;
+        r.forEach(function(it){
+          it.el.style.left = curX + 'px';
+          it.el.style.top = curY + 'px';
+          savePosition(it.el.id, { x: Math.round(curX), y: Math.round(curY) });
+          curX += it.w + GAP;
+          maxH = Math.max(maxH, it.h);
+        });
+        curY += maxH + GAP;
+      });
+      fitBoardHeight();
+      toast('Espaçamento padronizado entre os painéis.');
+    }
+
+    if(!isFreeform){
+      // Phones: skip the freeform canvas entirely, cards stack full-width via
+      // the CSS media query — only minimize state still applies.
+      var data0 = readLayout();
+      cards.forEach(function(c){
+        var p = data0.positions && data0.positions[c.id];
+        if(p && p.min) c.classList.add('minimized');
+      });
+    } else {
+      // 1. Every card gets an explicit height (not auto), so content that
+      // grows later — a vectorize result, the live preview, a field that
+      // only appears once a checkbox is on — scrolls inside the card via
+      // overflow:auto instead of silently overlapping a neighbor that never
+      // moves (siblings are independently positioned, not in normal flow).
+      // A flat buffer covers the small cases (a conditional field or two);
+      // the two cards with genuinely large dynamic content get more room.
+      // This inflation happens WHILE still in the flex flow (below), so the
+      // wrap reflows around the taller boxes before default positions are
+      // captured — inflating after measuring would leave the taller card's
+      // new bottom edge overlapping whatever the flow had already placed
+      // right below its old, shorter self.
+      var minDefaultHeight = { 'resultCard': 480, 'card-preview': 420 };
+      board.classList.add('unpositioned');
+      cards.forEach(function(c){
+        var h = c.offsetHeight + 36;
+        if(minDefaultHeight[c.id]) h = Math.max(h, minDefaultHeight[c.id]);
+        c.style.height = h + 'px';
+      });
+
+      // 2. Now measure each card's default position from that inflated flow…
+      var defaults = {};
+      cards.forEach(function(c){
+        defaults[c.id] = { x: c.offsetLeft, y: c.offsetTop, w: c.offsetWidth, h: c.offsetHeight };
+      });
+      board.classList.remove('unpositioned');
+
+      // 3. …then place every card absolutely, using saved values where present.
+      var saved = readLayout().positions || {};
+      cards.forEach(function(c){
+        var d = defaults[c.id];
+        var s = saved[c.id] || {};
+        c.style.left = (s.x != null ? s.x : d.x) + 'px';
+        c.style.top = (s.y != null ? s.y : d.y) + 'px';
+        c.style.width = (s.w || d.w) + 'px';
+        c.style.height = (s.h || d.h) + 'px';
+        if(s.min) c.classList.add('minimized');
+      });
+      fitBoardHeight();
+
+      // Drag to move freely — the whole card is a pointerdown target, but the
+      // drag only starts if it began on the grip handle, so sliders/buttons/
+      // text inside the card are never hijacked.
+      cards.forEach(function(card){
+        var handle = card.querySelector('.drag-handle');
+        var startX, startY, origLeft, origTop;
+
+        handle.addEventListener('pointerdown', function(e){
+          if(e.button !== undefined && e.button !== 0) return;
+          startX = e.clientX; startY = e.clientY;
+          origLeft = parseFloat(card.style.left) || 0;
+          origTop = parseFloat(card.style.top) || 0;
+          card.classList.add('dragging');
+          card.style.zIndex = ++zTop;
+          handle.setPointerCapture(e.pointerId);
+          e.preventDefault();
+        });
+
+        handle.addEventListener('pointermove', function(e){
+          if(!card.classList.contains('dragging')) return;
+          var nx = origLeft + (e.clientX - startX);
+          var ny = origTop + (e.clientY - startY);
+          nx = Math.max(0, Math.min(nx, Math.max(0, board.clientWidth - 60)));
+          ny = Math.max(0, ny);
+          card.style.left = nx + 'px';
+          card.style.top = ny + 'px';
+          fitBoardHeight();
+        });
+
+        function endDrag(e){
+          if(!card.classList.contains('dragging')) return;
+          card.classList.remove('dragging');
+          try{ handle.releasePointerCapture(e.pointerId); }catch(err){}
+          savePosition(card.id, {
+            x: Math.round(parseFloat(card.style.left)),
+            y: Math.round(parseFloat(card.style.top))
+          });
+        }
+        handle.addEventListener('pointerup', endDrag);
+        handle.addEventListener('pointercancel', endDrag);
+
+        // Clicking anywhere in a card (not just dragging it) also brings it
+        // to the front, so an overlapped panel is easy to reach again.
+        card.addEventListener('pointerdown', function(){ card.style.zIndex = ++zTop; });
+      });
+
+      // Resize (native corner handle from CSS `resize:both`) — persist per card.
+      // Read size via getBoundingClientRect (border-box), not entry.contentRect
+      // (content-box only): cards are box-sizing:border-box, so el.style.width
+      // must be saved/restored as the border-box size or every reload would
+      // shrink the card by its own padding.
+      if('ResizeObserver' in window){
+        var ro = new ResizeObserver(function(entries){
+          entries.forEach(function(entry){
+            var el = entry.target;
+            clearTimeout(el._resizeTimer);
+            el._resizeTimer = setTimeout(function(){
+              if(el.classList.contains('minimized')) return;
+              var rect = el.getBoundingClientRect();
+              savePosition(el.id, { w: Math.round(rect.width), h: Math.round(rect.height) });
+              fitBoardHeight();
+            }, 350);
+          });
+        });
+        cards.forEach(function(c){ ro.observe(c); });
+      }
+    }
+
+    setLocked(readLayout().locked === true);
+
+    // Minimize / restore — works in both freeform and stacked (mobile) modes.
+    cards.forEach(function(card){
+      var toggle = card.querySelector('.min-toggle');
+      toggle.addEventListener('click', function(){
+        var min = card.classList.toggle('minimized');
+        savePosition(card.id, { min: min });
+        if(isFreeform) fitBoardHeight();
+      });
+    });
+
+    if(btnAlignGrid){
+      btnAlignGrid.addEventListener('click', alignGrid);
+    }
+
+    if(btnLockLayout){
+      btnLockLayout.addEventListener('click', function(){
+        setLocked(!isLocked);
+        toast(isLocked ? 'Layout bloqueado — arrastar e redimensionar foram desativados.' : 'Layout desbloqueado.');
+      });
+    }
+
+    if(btnResetLayout){
+      btnResetLayout.addEventListener('click', function(){
+        try{ localStorage.removeItem(LAYOUT_KEY); }catch(e){}
+        location.reload();
+      });
+    }
+  })();
+
+  function fmtBytes(n){
+    if(n < 1024) return n + ' B';
+    if(n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+    return (n/(1024*1024)).toFixed(2) + ' MB';
+  }
+
+  function clamp255(v){ return v < 0 ? 0 : (v > 255 ? 255 : v); }
+
+  // ---- mode switch ----
+  document.getElementById('modes').addEventListener('click', function(e){
+    var btn = e.target.closest('.mode-btn');
+    if(!btn) return;
+    document.querySelectorAll('#modes .mode-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    state.mode = btn.getAttribute('data-mode');
+    var isPB = state.mode === 'pb';
+    thresholdField.classList.toggle('on', isPB);
+    colorsField.style.display = isPB ? 'none' : '';
+    schedulePreview();
+  });
+
+  document.getElementById('corners').addEventListener('click', function(e){
+    var btn = e.target.closest('.mode-btn');
+    if(!btn) return;
+    document.querySelectorAll('#corners .mode-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  });
+
+  document.getElementById('method').addEventListener('click', function(e){
+    var btn = e.target.closest('.mode-btn');
+    if(!btn) return;
+    document.querySelectorAll('#method .mode-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  });
+
+  // ---- estilo padrão: "ilustração vetorial limpa, estilo cartoon moderno,
+  // contornos nítidos e consistentes, caminhos limpos" — a base de toda
+  // vetorização, do traço mais simples ao mais complexo. Um clique devolve
+  // todos os parâmetros a essa receita, não só o layout dos painéis.
+  var btnResetStyle = document.getElementById('btnResetStyle');
+  if(btnResetStyle){
+    btnResetStyle.addEventListener('click', function(){
+      document.querySelectorAll('#modes .mode-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-mode') === 'cor'); });
+      state.mode = 'cor';
+      thresholdField.classList.remove('on');
+      colorsField.style.display = '';
+
+      colorsEl.value = 8; colorsVal.textContent = '8';
+      threshEl.value = 128; threshVal.textContent = '128';
+      pathsEl.value = 6; pathsVal.textContent = '6';
+      noiseEl.value = 10; noiseVal.textContent = '10';
+      blurEl.value = 1; blurVal.textContent = '1';
+      contrastEl.value = 0; contrastVal.textContent = '0';
+      brightnessEl.value = 0; brightnessVal.textContent = '0';
+      bgToleranceEl.value = 30; bgToleranceVal.textContent = '30';
+
+      document.querySelectorAll('#corners .mode-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-corners') === 'sharp'); });
+      document.querySelectorAll('#method .mode-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-method') === 'abutting'); });
+
+      ignoreWhiteEl.checked = false;
+      removeBgEl.checked = false;
+      bgToleranceField.classList.remove('on');
+
+      state.autoContrast = null;
+      btnAutoContrast.classList.remove('on');
+      btnAutoContrast.textContent = 'Auto-contraste (esticar histograma)';
+
+      extraPromptEl.value = '';
+      updateEffectivePrompt();
+
+      schedulePreview();
+      toast('Parâmetros restaurados ao estilo padrão.');
+    });
+  }
+
+  // ---- prompt complementar: liga o texto digitado aos parâmetros reais do
+  // traçado. Isto NÃO é um modelo de IA generativa — é um interpretador local
+  // por palavras-chave: cada termo reconhecido aciona o mesmo controle que o
+  // usuário acionaria manualmente (clique/checkbox/slider), então o efeito é
+  // sempre real e visível na Pré-visualização e no resultado, nunca decorativo.
+  var extraPromptEl = document.getElementById('extraPrompt');
+  var effectivePromptText = document.getElementById('effectivePromptText');
+  var basePromptText = document.getElementById('basePromptText');
+
+  function stripAccents(s){
+    return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+
+  function clickMatching(selector, attr, value){
+    var el = document.querySelector(selector + '[' + attr + '="' + value + '"]');
+    if(el) el.click();
+  }
+
+  function setSlider(el, value){
+    el.value = Math.max(parseInt(el.min, 10), Math.min(parseInt(el.max, 10), value));
+    el.dispatchEvent(new Event('input'));
+  }
+
+  function nudgeSlider(el, delta){
+    setSlider(el, parseInt(el.value, 10) + delta);
+  }
+
+  function setCheckbox(el, checked){
+    if(el.checked === checked) return;
+    el.checked = checked;
+    el.dispatchEvent(new Event('change'));
+  }
+
+  var PROMPT_RULES = [
+    // modo
+    { test: /preto e branco|p&b|\bpb\b|monocrom/, run: function(){ clickMatching('#modes .mode-btn', 'data-mode', 'pb'); } },
+    { test: /escala de cinza|\bcinza\b|grayscale/, run: function(){ clickMatching('#modes .mode-btn', 'data-mode', 'cinza'); } },
+    { test: /colorid|manter (as )?cores|cores vivas/, run: function(){ clickMatching('#modes .mode-btn', 'data-mode', 'cor'); } },
+    // cantos
+    { test: /arredondad|suav|organic|curvo/, run: function(){ clickMatching('#corners .mode-btn', 'data-corners', 'smooth'); } },
+    { test: /nitid|geometric|contorno[s]? reto|angulos? reto/, run: function(){ clickMatching('#corners .mode-btn', 'data-corners', 'sharp'); } },
+    // método
+    { test: /sobrepo|overlap/, run: function(){ clickMatching('#method .mode-btn', 'data-method', 'overlapping'); } },
+    { test: /encostar|abutting|sem sobreposi/, run: function(){ clickMatching('#method .mode-btn', 'data-method', 'abutting'); } },
+    // fundo
+    { test: /remover( o)? fundo|sem fundo|fundo transparente/, run: function(){ setCheckbox(removeBgEl, true); } },
+    { test: /ignorar branco|fundo branco/, run: function(){ setCheckbox(ignoreWhiteEl, true); } },
+    // cores / detalhe
+    { test: /poucas cores|menos cores|minimalist|bem simples|flat/, run: function(){ setSlider(colorsEl, 5); } },
+    { test: /mais cores|muito detalhad|fiel aos detalhes|realista|alta fidelidade/, run: function(){ setSlider(colorsEl, 20); } },
+    { test: /muito detalhad|preciso|fiel aos contornos|alta fidelidade/, run: function(){ setSlider(pathsEl, 8); } },
+    { test: /simplificad|traco simples|poucas curvas|minimalist/, run: function(){ setSlider(pathsEl, 3); } },
+    { test: /limpo|sem ruido|sem manchas|limpar/, run: function(){ setSlider(noiseEl, 14); } },
+    // contraste / brilho
+    { test: /mais contraste|contrastante/, run: function(){ nudgeSlider(contrastEl, 20); } },
+    { test: /mais claro|clarear|iluminar/, run: function(){ nudgeSlider(brightnessEl, 15); } },
+    { test: /mais escuro|escurecer/, run: function(){ nudgeSlider(brightnessEl, -15); } }
+  ];
+
+  function applyPromptKeywords(text){
+    var norm = stripAccents(text.toLowerCase());
+    PROMPT_RULES.forEach(function(rule){
+      if(rule.test.test(norm)) rule.run();
+    });
+  }
+
+  function updateEffectivePrompt(){
+    var base = basePromptText.textContent.replace(/^"|"$/g, '');
+    var extra = extraPromptEl.value.trim();
+    effectivePromptText.textContent = extra ? (base + '. Além disso: ' + extra + '.') : base + '.';
+  }
+
+  var promptTimer = null;
+  extraPromptEl.addEventListener('input', function(){
+    clearTimeout(promptTimer);
+    promptTimer = setTimeout(function(){
+      applyPromptKeywords(extraPromptEl.value);
+      updateEffectivePrompt();
+      schedulePreview();
+    }, 250);
+  });
+
+  updateEffectivePrompt();
+
+  // ---- sliders live values ----
+  colorsEl.addEventListener('input', function(){ colorsVal.textContent = colorsEl.value; });
+  threshEl.addEventListener('input', function(){ threshVal.textContent = threshEl.value; schedulePreview(); });
+  pathsEl.addEventListener('input', function(){ pathsVal.textContent = pathsEl.value; });
+  noiseEl.addEventListener('input', function(){ noiseVal.textContent = noiseEl.value; });
+  blurEl.addEventListener('input', function(){ blurVal.textContent = blurEl.value; });
+  contrastEl.addEventListener('input', function(){ contrastVal.textContent = contrastEl.value; schedulePreview(); });
+  brightnessEl.addEventListener('input', function(){ brightnessVal.textContent = brightnessEl.value; schedulePreview(); });
+  ignoreWhiteEl.addEventListener('change', schedulePreview);
+  bgToleranceEl.addEventListener('input', function(){ bgToleranceVal.textContent = bgToleranceEl.value; schedulePreview(); });
+  removeBgEl.addEventListener('change', function(){
+    bgToleranceField.classList.toggle('on', removeBgEl.checked);
+    schedulePreview();
+  });
+
+  // ---- drop zone ----
+  drop.addEventListener('click', function(e){
+    if(e.target !== fileInput) fileInput.click();
+  });
+  ['dragover','dragenter'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('drag'); });
+  });
+  ['dragleave','dragend'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ drop.classList.remove('drag'); });
+  });
+  drop.addEventListener('drop', function(e){
+    e.preventDefault();
+    drop.classList.remove('drag');
+    if(e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', function(){
+    if(fileInput.files && fileInput.files[0]) handleFile(fileInput.files[0]);
+  });
+
+  function handleFile(file){
+    if(!file.type || file.type.indexOf('image/') !== 0){
+      toast('Escolha um arquivo de imagem.');
+      return;
+    }
+    state.fileName = file.name;
+    state.fileSize = file.size;
+    state.fileType = file.type;
+
+    var reader = new FileReader();
+    reader.onload = function(e){
+      state.origDataURL = e.target.result;
+      var img = new Image();
+      img.onload = function(){ onImageLoaded(img); };
+      img.onerror = function(){ toast('Não foi possível abrir essa imagem.'); };
+      img.src = state.origDataURL;
+    };
+    reader.onerror = function(){ toast('Não foi possível ler o arquivo.'); };
+    reader.readAsDataURL(file);
+  }
+
+  function onImageLoaded(img){
+    state.natW = img.naturalWidth;
+    state.natH = img.naturalHeight;
+    state.autoContrast = null;
+    btnAutoContrast.classList.remove('on');
+    btnAutoContrast.textContent = 'Auto-contraste (esticar histograma)';
+
+    var w = img.naturalWidth, h = img.naturalHeight;
+    var scale = Math.min(1, MAX_DIM / Math.max(w, h));
+    state.resized = scale < 1;
+    var cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+
+    var canvas = document.createElement('canvas');
+    canvas.width = cw; canvas.height = ch;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, cw, ch);
+    state.imgd = ctx.getImageData(0, 0, cw, ch);
+
+    var metaHtml = '<b>' + escHtml(state.fileName) + '</b><br/>' +
+      w + '×' + h + 'px · ' + fmtBytes(state.fileSize);
+    if(state.resized){
+      metaHtml += '<br/><span class="warn-note">Reduzida para ' + cw + '×' + ch + 'px antes de vetorizar (evita travar o navegador)</span>';
+    }
+    fileMeta.innerHTML = metaHtml;
+    fileMeta.classList.add('on');
+
+    btnVectorize.disabled = false;
+    resultArea.innerHTML = '<div class="result-empty">Imagem carregada. Ajuste as opções e clique em "Vetorizar imagem".</div>';
+
+    buildPreviewShell();
+    updatePreview();
+  }
+
+  function escHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function cloneImageData(imgd){
+    return { width: imgd.width, height: imgd.height, data: new Uint8ClampedArray(imgd.data) };
+  }
+
+  // ---- pré-processamento (estilo Photoshop: bitmap + brilho/contraste) ----
+
+  btnAutoContrast.addEventListener('click', function(){
+    if(!state.imgd) return;
+    if(state.autoContrast){
+      state.autoContrast = null;
+      btnAutoContrast.classList.remove('on');
+      btnAutoContrast.textContent = 'Auto-contraste (esticar histograma)';
+      toast('Auto-contraste desativado.');
+      schedulePreview();
+      return;
+    }
+    var d = state.imgd.data;
+    var lo = 255, hi = 0;
+    for(var i = 0; i < d.length; i += 4){
+      var lum = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+      if(lum < lo) lo = lum;
+      if(lum > hi) hi = lum;
+    }
+    if(hi - lo < 5){ toast('Imagem já usa a faixa de contraste inteira.'); return; }
+    state.autoContrast = { lo: lo, hi: hi };
+    btnAutoContrast.classList.add('on');
+    btnAutoContrast.textContent = 'Auto-contraste ativo (' + Math.round(lo) + '–' + Math.round(hi) + ')';
+    toast('Histograma esticado com base nesta imagem.');
+    schedulePreview();
+  });
+
+  function applyAutoStretch(d, lo, hi){
+    var range = Math.max(1, hi - lo);
+    for(var i = 0; i < d.length; i += 4){
+      d[i]   = clamp255((d[i]   - lo) * 255 / range);
+      d[i+1] = clamp255((d[i+1] - lo) * 255 / range);
+      d[i+2] = clamp255((d[i+2] - lo) * 255 / range);
+    }
+  }
+
+  function applyContrastBrightness(d, contrast, brightness){
+    if(contrast === 0 && brightness === 0) return;
+    var factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+    for(var i = 0; i < d.length; i += 4){
+      d[i]   = clamp255(factor * (d[i]   - 128) + 128 + brightness);
+      d[i+1] = clamp255(factor * (d[i+1] - 128) + 128 + brightness);
+      d[i+2] = clamp255(factor * (d[i+2] - 128) + 128 + brightness);
+    }
+  }
+
+  // Remove fundo: detecta a cor de fundo pela média dos 4 cantos e apaga por
+  // preenchimento (flood fill) a partir das bordas — só o que está CONECTADO
+  // à borda e parecido com essa cor vira transparente, então uma área da
+  // mesma cor isolada dentro do sujeito (ex.: um botão branco numa camisa
+  // branca sobre fundo branco) não é afetada.
+  function applyRemoveBackground(clone, tolerancePct){
+    var w = clone.width, h = clone.height, d = clone.data;
+    if(w < 2 || h < 2) return;
+
+    var corners = [[0,0], [w-1,0], [0,h-1], [w-1,h-1]];
+    var refR = 0, refG = 0, refB = 0;
+    corners.forEach(function(c){
+      var idx = (c[1]*w + c[0]) * 4;
+      refR += d[idx]; refG += d[idx+1]; refB += d[idx+2];
+    });
+    refR /= 4; refG /= 4; refB /= 4;
+
+    var maxDist = (tolerancePct / 100) * 441.7; // 441.7 ~= sqrt(255^2*3), the max possible RGB distance
+    var visited = new Uint8Array(w * h);
+    var queue = new Int32Array(w * h);
+    var qHead = 0, qTail = 0;
+
+    function tryAdd(x, y){
+      if(x < 0 || x >= w || y < 0 || y >= h) return;
+      var pi = y * w + x;
+      if(visited[pi]) return;
+      visited[pi] = 1;
+      var idx = pi * 4;
+      if(d[idx+3] === 0){ queue[qTail++] = pi; return; } // already transparent: keep flooding through it
+      var dr = d[idx] - refR, dg = d[idx+1] - refG, db = d[idx+2] - refB;
+      if(Math.sqrt(dr*dr + dg*dg + db*db) <= maxDist){
+        d[idx+3] = 0;
+        queue[qTail++] = pi;
+      }
+    }
+
+    for(var x = 0; x < w; x++){ tryAdd(x, 0); tryAdd(x, h-1); }
+    for(var y = 0; y < h; y++){ tryAdd(0, y); tryAdd(w-1, y); }
+
+    while(qHead < qTail){
+      var pi = queue[qHead++];
+      var px = pi % w, py = (pi - px) / w;
+      tryAdd(px - 1, py); tryAdd(px + 1, py); tryAdd(px, py - 1); tryAdd(px, py + 1);
+    }
+  }
+
+  function prepareImageData(){
+    var clone = cloneImageData(state.imgd);
+    var d = clone.data;
+
+    if(state.autoContrast) applyAutoStretch(d, state.autoContrast.lo, state.autoContrast.hi);
+
+    var contrast = parseInt(contrastEl.value, 10);
+    var brightness = parseInt(brightnessEl.value, 10);
+    applyContrastBrightness(d, contrast, brightness);
+
+    if(state.mode === 'cinza' || state.mode === 'pb'){
+      for(var i = 0; i < d.length; i += 4){
+        var lum = Math.round(0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2]);
+        d[i] = d[i+1] = d[i+2] = lum;
+      }
+    }
+    if(state.mode === 'pb'){
+      var th = parseInt(threshEl.value, 10);
+      for(var j = 0; j < d.length; j += 4){
+        var v = d[j] >= th ? 255 : 0;
+        d[j] = d[j+1] = d[j+2] = v;
+      }
+    }
+
+    if(removeBgEl.checked){
+      applyRemoveBackground(clone, parseInt(bgToleranceEl.value, 10));
+    }
+
+    if(ignoreWhiteEl.checked){
+      for(var k = 0; k < d.length; k += 4){
+        if(d[k] >= 248 && d[k+1] >= 248 && d[k+2] >= 248) d[k+3] = 0;
+      }
+    }
+
+    return clone;
+  }
+
+  // ---- pré-visualização em tempo real (antes de vetorizar) ----
+
+  function buildPreviewShell(){
+    previewArea.innerHTML =
+      '<div class="compare">' +
+      '  <div class="pane"><div class="lbl"><span>Original</span></div><div class="box"><img src="' + state.origDataURL + '" alt="Original" /></div></div>' +
+      '  <div class="pane"><div class="lbl"><span>Com ajustes</span></div><div class="box"><canvas id="previewCanvas"></canvas></div></div>' +
+      '</div>' +
+      '<div class="btn-row">' +
+      '  <button class="btn btn-secondary" id="btnDownloadPreview" style="flex:1 1 100%;">Baixar esta imagem (PNG)</button>' +
+      '</div>';
+    previewCanvas = document.getElementById('previewCanvas');
+  }
+
+  function downloadPreviewPNG(){
+    if(!previewCanvas) return;
+    previewCanvas.toBlob(function(blob){
+      if(!blob){ toast('Não deu para gerar o PNG.'); return; }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = baseName() + '-editada.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    }, 'image/png');
+  }
+
+  function updatePreview(){
+    if(!state.imgd || !previewCanvas) return;
+    var imgd = prepareImageData();
+    previewCanvas.width = imgd.width;
+    previewCanvas.height = imgd.height;
+    // prepareImageData() returns a plain {width,height,data} object (what
+    // ImageTracer expects) — the canvas API needs a real ImageData instance.
+    var realImgd = new ImageData(imgd.data, imgd.width, imgd.height);
+    previewCanvas.getContext('2d').putImageData(realImgd, 0, 0);
+  }
+
+  function schedulePreview(){
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(updatePreview, 60);
+  }
+
+  // previewArea itself is never replaced, only its innerHTML (rebuilt by
+  // buildPreviewShell on each new image), so one delegated listener here
+  // keeps working across re-renders — same pattern as resultArea below.
+  previewArea.addEventListener('click', function(e){
+    if(e.target.closest('#btnDownloadPreview')) downloadPreviewPNG();
+  });
+
+  // ---- Image Trace: opções avançadas ----
+
+  function buildOptions(){
+    var pathsLevel = parseInt(pathsEl.value, 10);      // 1..10, higher = more detail
+    var t = 11 - pathsLevel;
+    var ltres = Math.max(0.15, t * 0.25);
+    var qtres = ltres;
+
+    var cornersMode = document.querySelector('#corners .mode-btn.active').getAttribute('data-corners');
+    var methodMode = document.querySelector('#method .mode-btn.active').getAttribute('data-method');
+
+    var opts = {
+      ltres: ltres,
+      qtres: qtres,
+      pathomit: parseInt(noiseEl.value, 10),
+      rightangleenhance: cornersMode === 'sharp',
+      linefilter: cornersMode === 'smooth',
+      colorsampling: 2,
+      colorquantcycles: 3,
+      mincolorratio: 0,
+      layering: methodMode === 'overlapping' ? 1 : 0,
+      strokewidth: 1,
+      scale: 1,
+      roundcoords: 1,
+      viewbox: true,
+      blurradius: parseInt(blurEl.value, 10),
+      blurdelta: 20
+    };
+
+    if(state.mode === 'pb'){
+      opts.numberofcolors = 2;
+      opts.pal = [ {r:0,g:0,b:0,a:255}, {r:255,g:255,b:255,a:255} ];
+    } else {
+      opts.numberofcolors = parseInt(colorsEl.value, 10);
+    }
+    return opts;
+  }
+
+  btnVectorize.addEventListener('click', function(){
+    if(!state.imgd) return;
+    btnVectorize.disabled = true;
+    btnVectorize.textContent = 'Vetorizando…';
+    resultArea.innerHTML = '<div class="loading"><div class="spin"></div>Traçando os contornos…</div>';
+
+    // let the loading UI paint before the (synchronous, potentially heavy) trace runs
+    setTimeout(function(){
+      try{
+        var imgd = prepareImageData();
+        var opts = buildOptions();
+        var svg = ImageTracer.imagedataToSVG(imgd, opts);
+        renderResult(svg);
+      }catch(err){
+        resultArea.innerHTML = '<div class="result-empty">Não deu para vetorizar essa imagem (' + escHtml(err.message || String(err)) + '). Tente reduzir o número de cores ou o detalhe.</div>';
+        toast('Erro ao vetorizar.');
+      }finally{
+        btnVectorize.disabled = false;
+        btnVectorize.textContent = 'Vetorizar imagem';
+      }
+    }, 30);
+  });
+
+  // ---- 3. Limpeza e otimização da malha vetorial ----
+  // Consecutive <path> elements sharing fill/stroke are already emitted back-to-back
+  // by imagetracer's color loop, so a same-style run can be merged into one <path>
+  // with multiple subpaths, without changing paint order.
+  function optimizeSVG(svgString){
+    var doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
+    var svg = doc.documentElement;
+    var pathList = Array.prototype.slice.call(svg.querySelectorAll('path'));
+    var beforeCount = pathList.length;
+    var merged = [];
+
+    pathList.forEach(function(p){
+      var d = (p.getAttribute('d') || '').trim();
+      if(!d){ p.parentNode.removeChild(p); return; }
+      var fill = p.getAttribute('fill') || '';
+      var stroke = p.getAttribute('stroke') || '';
+      var sw = p.getAttribute('stroke-width') || '';
+      var op = p.getAttribute('opacity') || '';
+      var last = merged[merged.length - 1];
+      if(last && last.fill === fill && last.stroke === stroke && last.sw === sw && last.op === op){
+        last.d.push(d);
+        p.parentNode.removeChild(p);
+      } else {
+        merged.push({ fill: fill, stroke: stroke, sw: sw, op: op, d: [d], el: p });
+      }
+    });
+
+    merged.forEach(function(g){
+      g.el.setAttribute('d', g.d.join(' '));
+      // A fully (or near-)transparent shape — typically the "Ignore White"
+      // background — must not sit on top intercepting clicks meant for the
+      // visible shapes underneath it in geometric-edit mode.
+      if(g.op !== '' && parseFloat(g.op) < 0.05) g.el.setAttribute('pointer-events', 'none');
+    });
+
+    return { svg: new XMLSerializer().serializeToString(svg), before: beforeCount, after: merged.length };
+  }
+
+  function renderResult(rawSvg){
+    var opt = optimizeSVG(rawSvg);
+    state.svgString = opt.svg;
+    state.geoEdit = false;
+    state.selectedPath = null;
+
+    var fills = {};
+    var fillRe = /fill="(#[0-9a-fA-F]{6}|rgba?\([^)]*\))"/g, m;
+    while((m = fillRe.exec(opt.svg))) fills[m[1]] = true;
+    var colorCount = Object.keys(fills).length;
+    var svgBytes = new Blob([opt.svg]).size;
+    var origBytes = state.fileSize;
+    var deltaPct = origBytes ? Math.round((1 - svgBytes/origBytes) * 100) : 0;
+
+    var html = '';
+    html += '<div class="compare">';
+    html += '  <div class="pane"><div class="lbl"><span>Original</span></div><div class="box"><img src="' + state.origDataURL + '" alt="Original" /></div></div>';
+    html += '  <div class="pane"><div class="lbl"><span>Vetor (SVG)</span></div><div class="box" id="svgBox"></div></div>';
+    html += '</div>';
+    html += '<div class="stats">';
+    html += '  <div class="stat"><span class="num">' + opt.after + '</span><span class="lbl">Formas</span></div>';
+    html += '  <div class="stat"><span class="num">' + colorCount + '</span><span class="lbl">Cores</span></div>';
+    html += '  <div class="stat"><span class="num">' + fmtBytes(svgBytes) + '</span><span class="lbl">Tamanho SVG</span></div>';
+    html += '  <div class="stat"><span class="num">' + (deltaPct > 0 ? '-' + deltaPct + '%' : deltaPct + '%') + '</span><span class="lbl">vs. original</span></div>';
+    html += '</div>';
+    html += '<p class="mesh-note">Malha otimizada: ' + opt.before + ' → ' + opt.after + ' formas (traçados da mesma cor mesclados)</p>';
+    html += '<div class="btn-row">';
+    html += '  <button class="btn btn-secondary" id="btnDownload">Baixar SVG</button>';
+    html += '  <button class="btn btn-secondary" id="btnCopy">Copiar código SVG</button>';
+    html += '  <button class="btn btn-ghost" id="btnGeoToggle" style="flex:1 1 100%;">Modo edição geométrica (ajustar formas para retângulo/círculo/triângulo)</button>';
+    html += '</div>';
+    html += '<div class="edit-toolbar" id="geoToolbar">';
+    html += '  <span class="et-label">Forma selecionada — 4. vetorização manual / 5. simplificar para forma base:</span>';
+    html += '  <button class="btn btn-ghost" id="geoAuto">Auto</button>';
+    html += '  <button class="btn btn-ghost" id="geoRect">Retângulo</button>';
+    html += '  <button class="btn btn-ghost" id="geoCircle">Círculo</button>';
+    html += '  <button class="btn btn-ghost" id="geoTriangle">Triângulo</button>';
+    html += '  <button class="btn btn-ghost" id="geoRevert">Reverter</button>';
+    html += '  <button class="btn btn-ghost" id="geoDeselect">Fechar</button>';
+    html += '</div>';
+
+    resultArea.innerHTML = html;
+    document.getElementById('svgBox').innerHTML = opt.svg;
+  }
+
+  // ---- 4 & 5. Vetorização manual / simplificação para formas base ----
+
+  function samplePathPoints(pathEl){
+    var len = pathEl.getTotalLength();
+    if(!len) return [];
+    var steps = 120;
+    var pts = [];
+    for(var i = 0; i < steps; i++){
+      var p = pathEl.getPointAtLength(len * i / steps);
+      pts.push([p.x, p.y]);
+    }
+    return pts;
+  }
+
+  function centroidOf(pts){
+    var x = 0, y = 0;
+    pts.forEach(function(p){ x += p[0]; y += p[1]; });
+    return [x / pts.length, y / pts.length];
+  }
+
+  function convexHull(pts){
+    var points = pts.slice().sort(function(a,b){ return a[0]-b[0] || a[1]-b[1]; });
+    function cross(o,a,b){ return (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]); }
+    var lower = [];
+    for(var i = 0; i < points.length; i++){
+      while(lower.length >= 2 && cross(lower[lower.length-2], lower[lower.length-1], points[i]) <= 0) lower.pop();
+      lower.push(points[i]);
+    }
+    var upper = [];
+    for(var j = points.length - 1; j >= 0; j--){
+      while(upper.length >= 2 && cross(upper[upper.length-2], upper[upper.length-1], points[j]) <= 0) upper.pop();
+      upper.push(points[j]);
+    }
+    lower.pop(); upper.pop();
+    var hull = lower.concat(upper);
+    return hull.length >= 3 ? hull : points;
+  }
+
+  function polygonArea(pts){
+    var a = 0;
+    for(var i = 0; i < pts.length; i++){
+      var p1 = pts[i], p2 = pts[(i+1) % pts.length];
+      a += p1[0]*p2[1] - p2[0]*p1[1];
+    }
+    return Math.abs(a) / 2;
+  }
+
+  function polygonPerimeter(pts){
+    var p = 0;
+    for(var i = 0; i < pts.length; i++){
+      var p1 = pts[i], p2 = pts[(i+1) % pts.length];
+      p += Math.hypot(p2[0]-p1[0], p2[1]-p1[1]);
+    }
+    return p;
+  }
+
+  function axisAlignedRectPts(pts){
+    var minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+    pts.forEach(function(p){
+      if(p[0]<minX)minX=p[0]; if(p[0]>maxX)maxX=p[0];
+      if(p[1]<minY)minY=p[1]; if(p[1]>maxY)maxY=p[1];
+    });
+    return [[minX,minY],[maxX,minY],[maxX,maxY],[minX,maxY]];
+  }
+
+  // Minimum-area bounding rectangle via rotating calipers over the convex hull
+  function minAreaRect(hull){
+    if(hull.length < 3) return axisAlignedRectPts(hull);
+    var best = null;
+    for(var i = 0; i < hull.length; i++){
+      var p1 = hull[i], p2 = hull[(i+1) % hull.length];
+      var edgeAngle = Math.atan2(p2[1]-p1[1], p2[0]-p1[0]);
+      var cos = Math.cos(-edgeAngle), sin = Math.sin(-edgeAngle);
+      var minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+      for(var j = 0; j < hull.length; j++){
+        var x = hull[j][0]*cos - hull[j][1]*sin;
+        var y = hull[j][0]*sin + hull[j][1]*cos;
+        if(x<minX)minX=x; if(x>maxX)maxX=x;
+        if(y<minY)minY=y; if(y>maxY)maxY=y;
+      }
+      var area = (maxX-minX) * (maxY-minY);
+      if(!best || area < best.area) best = { area:area, minX:minX,maxX:maxX,minY:minY,maxY:maxY, angle:edgeAngle };
+    }
+    var cos2 = Math.cos(best.angle), sin2 = Math.sin(best.angle);
+    function rot(x,y){ return [x*cos2 - y*sin2, x*sin2 + y*cos2]; }
+    return [
+      rot(best.minX, best.minY),
+      rot(best.maxX, best.minY),
+      rot(best.maxX, best.maxY),
+      rot(best.minX, best.maxY)
+    ];
+  }
+
+  // Approximate minimum enclosing circle (Ritter's algorithm)
+  function enclosingCircle(pts){
+    var c = centroidOf(pts);
+    var r = 0;
+    pts.forEach(function(p){ r = Math.max(r, Math.hypot(p[0]-c[0], p[1]-c[1])); });
+    for(var pass = 0; pass < 3; pass++){
+      pts.forEach(function(p){
+        var d = Math.hypot(p[0]-c[0], p[1]-c[1]);
+        if(d > r){
+          var newR = (r + d) / 2;
+          var k = (d - newR) / d;
+          c = [c[0] + (p[0]-c[0])*k, c[1] + (p[1]-c[1])*k];
+          r = newR;
+        }
+      });
+    }
+    return { c: c, r: r };
+  }
+
+  // Simplify the hull down to a triangle, dropping the vertex whose removal
+  // loses the least area at each step (Visvalingam-Whyatt style)
+  function fitTriangleHull(hull){
+    var poly = hull.slice();
+    while(poly.length > 3){
+      var minLoss = Infinity, minIdx = 0;
+      for(var i = 0; i < poly.length; i++){
+        var a = poly[(i-1+poly.length) % poly.length], b = poly[i], c = poly[(i+1) % poly.length];
+        var loss = Math.abs((b[0]-a[0])*(c[1]-a[1]) - (c[0]-a[0])*(b[1]-a[1])) / 2;
+        if(loss < minLoss){ minLoss = loss; minIdx = i; }
+      }
+      poly.splice(minIdx, 1);
+    }
+    return poly;
+  }
+
+  function ptsToPathD(pts){
+    if(!pts.length) return '';
+    var d = 'M' + pts[0][0].toFixed(2) + ',' + pts[0][1].toFixed(2);
+    for(var i = 1; i < pts.length; i++) d += 'L' + pts[i][0].toFixed(2) + ',' + pts[i][1].toFixed(2);
+    return d + 'Z';
+  }
+
+  function circleToPathD(c, r){
+    var x = c[0], y = c[1];
+    return 'M' + (x-r).toFixed(2) + ',' + y.toFixed(2) +
+      'A' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 1,0 ' + (x+r).toFixed(2) + ',' + y.toFixed(2) +
+      'A' + r.toFixed(2) + ',' + r.toFixed(2) + ' 0 1,0 ' + (x-r).toFixed(2) + ',' + y.toFixed(2) + 'Z';
+  }
+
+  function toggleGeoEdit(){
+    state.geoEdit = !state.geoEdit;
+    var box = document.getElementById('svgBox');
+    var btn = document.getElementById('btnGeoToggle');
+    if(box) box.classList.toggle('editing', state.geoEdit);
+    if(btn){
+      btn.classList.toggle('on', state.geoEdit);
+      btn.textContent = state.geoEdit
+        ? 'Sair do modo edição geométrica'
+        : 'Modo edição geométrica (ajustar formas para retângulo/círculo/triângulo)';
+    }
+    if(state.geoEdit) toast('Clique numa forma do vetor para ajustá-la.');
+    else geoDeselect();
+  }
+
+  function selectGeoPath(pathEl){
+    if(state.selectedPath) state.selectedPath.classList.remove('geo-selected');
+    state.selectedPath = pathEl;
+    pathEl.classList.add('geo-selected');
+    if(!pathEl.getAttribute('data-orig-d')) pathEl.setAttribute('data-orig-d', pathEl.getAttribute('d'));
+    var toolbar = document.getElementById('geoToolbar');
+    if(toolbar) toolbar.classList.add('on');
+  }
+
+  function geoDeselect(){
+    if(state.selectedPath) state.selectedPath.classList.remove('geo-selected');
+    state.selectedPath = null;
+    var toolbar = document.getElementById('geoToolbar');
+    if(toolbar) toolbar.classList.remove('on');
+  }
+
+  function geoRevertSelected(){
+    if(!state.selectedPath) return;
+    var orig = state.selectedPath.getAttribute('data-orig-d');
+    if(orig) state.selectedPath.setAttribute('d', orig);
+    toast('Forma revertida ao traçado original.');
+  }
+
+  function geoApplyRect(){
+    if(!state.selectedPath) return;
+    var pts = samplePathPoints(state.selectedPath);
+    if(pts.length < 3) return;
+    var rectPts = minAreaRect(convexHull(pts));
+    state.selectedPath.setAttribute('d', ptsToPathD(rectPts));
+    toast('Forma ajustada para retângulo.');
+  }
+
+  function geoApplyCircle(){
+    if(!state.selectedPath) return;
+    var pts = samplePathPoints(state.selectedPath);
+    if(pts.length < 3) return;
+    var circ = enclosingCircle(pts);
+    state.selectedPath.setAttribute('d', circleToPathD(circ.c, circ.r));
+    toast('Forma ajustada para círculo.');
+  }
+
+  function geoApplyTriangle(){
+    if(!state.selectedPath) return;
+    var pts = samplePathPoints(state.selectedPath);
+    if(pts.length < 3) return;
+    var tri = fitTriangleHull(convexHull(pts));
+    state.selectedPath.setAttribute('d', ptsToPathD(tri));
+    toast('Forma ajustada para triângulo.');
+  }
+
+  function geoApplyAuto(){
+    if(!state.selectedPath) return;
+    var pts = samplePathPoints(state.selectedPath);
+    if(pts.length < 3) return;
+    var hull = convexHull(pts);
+    var area = polygonArea(hull);
+    var perim = polygonPerimeter(hull);
+    var circularity = perim > 0 ? (4*Math.PI*area) / (perim*perim) : 0;
+
+    var rectPts = minAreaRect(hull);
+    var rectArea = polygonArea(rectPts);
+    var rectangularity = rectArea > 0 ? Math.min(area/rectArea, rectArea/Math.max(area,1e-6)) : 0;
+
+    // fitTriangleHull only ever drops hull vertices, so the resulting triangle
+    // is inscribed in the hull (triArea <= area) — ratio this way round so it
+    // stays bounded in [0,1] and only peaks for shapes that are already
+    // triangular (where the hull reduces to ~3 points with no area loss).
+    var tri = fitTriangleHull(hull);
+    var triArea = polygonArea(tri);
+    var triangularity = area > 0 ? triArea / area : 0;
+
+    var scores = [
+      { shape:'circle', score: circularity },
+      { shape:'rect', score: rectangularity },
+      { shape:'triangle', score: triangularity }
+    ].sort(function(a,b){ return b.score - a.score; });
+
+    var best = scores[0];
+    var label;
+    if(best.shape === 'circle'){
+      var c = enclosingCircle(pts);
+      state.selectedPath.setAttribute('d', circleToPathD(c.c, c.r));
+      label = 'círculo';
+    } else if(best.shape === 'rect'){
+      state.selectedPath.setAttribute('d', ptsToPathD(rectPts));
+      label = 'retângulo';
+    } else {
+      state.selectedPath.setAttribute('d', ptsToPathD(tri));
+      label = 'triângulo';
+    }
+    toast('Auto: forma detectada como ' + label + ' (confiança ' + Math.round(Math.min(best.score,1)*100) + '%).');
+  }
+
+  // Delegated click handling: resultArea itself is never replaced, only its
+  // innerHTML, so this single listener keeps working across re-renders.
+  resultArea.addEventListener('click', function(e){
+    var t = e.target;
+    if(t.closest('#btnDownload')){ downloadSVG(); return; }
+    if(t.closest('#btnCopy')){ copySVG(); return; }
+    if(t.closest('#btnGeoToggle')){ toggleGeoEdit(); return; }
+    if(t.closest('#geoAuto')){ geoApplyAuto(); return; }
+    if(t.closest('#geoRect')){ geoApplyRect(); return; }
+    if(t.closest('#geoCircle')){ geoApplyCircle(); return; }
+    if(t.closest('#geoTriangle')){ geoApplyTriangle(); return; }
+    if(t.closest('#geoRevert')){ geoRevertSelected(); return; }
+    if(t.closest('#geoDeselect')){ geoDeselect(); return; }
+
+    if(state.geoEdit && t.tagName && t.tagName.toLowerCase() === 'path' && t.closest('#svgBox')){
+      selectGeoPath(t);
+    }
+  });
+
+  function baseName(){
+    var n = state.fileName || 'imagem';
+    var dot = n.lastIndexOf('.');
+    return (dot > 0 ? n.slice(0, dot) : n) || 'imagem';
+  }
+
+  function downloadSVG(){
+    if(!state.svgString) return;
+    var blob = new Blob([state.svgString], {type: 'image/svg+xml'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = baseName() + '-vetor.svg';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function copySVG(){
+    if(!state.svgString) return;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(state.svgString).then(function(){
+        toast('Código SVG copiado.');
+      }, function(){
+        toast('Não deu para copiar automaticamente.');
+      });
+    } else {
+      toast('Copie manualmente pelo botão de baixar.');
+    }
+  }
+
+})();
+</script>
+</body>
+</html>
