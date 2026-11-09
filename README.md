@@ -1,4 +1,35 @@
-# Ferrabisk Estúdio — Diagnóstico de Marca
+# Ferrabisk Estúdio — Ferramentas
+
+| Ferramenta | Arquivo |
+|---|---|
+| **Sorteio de Briefing** — gera briefings aleatórios de projeto de marca, prontos para imprimir | `sorteio-briefing.html` |
+| **Diagnóstico de Marca** — diagnóstico e criação de marcas (guia abaixo) | `index.html` |
+
+---
+
+## Sorteio de Briefing (`sorteio-briefing.html`)
+
+Laboratório de experimentação criativa para identidade visual, branding, design de logotipo e direção de arte. Abra o arquivo no navegador (sem instalação) e clique em **Sortear briefing**. O aplicativo sorteia:
+
+1. **Produto** — 55 negócios de 10 segmentos, com descrição.
+2. **Nome da marca** — 90 nomes inventados, com monograma.
+3. **Paleta** — 30 paletas de 5 cores com HEX e papel de cada cor (clique na cor para copiar o HEX).
+4. **Grafismos** — 28 linguagens gráficas, com uma prévia gerada na hora com as cores da paleta sorteada.
+5. **Referência** — 38 movimentos e escolas visuais, com características e o que pesquisar.
+6. **Tipografia** — 24 pares de fontes do Google Fonts (títulos + texto), com o nome da marca já aplicado.
+
+Como complemento, cada briefing ganha público-alvo, arquétipo de marca, uma restrição criativa e a lista de entregáveis adequada ao segmento.
+
+- **Cadeado** em cada carta: mantém aquele item nos próximos sorteios.
+- **Seta circular** em cada carta: sorteia de novo só aquele item.
+- **Copiar link**: a combinação fica no endereço da página (código após o `#`), então o link reabre exatamente o mesmo briefing.
+- **Imprimir / salvar PDF**: imprime só a folha do briefing, em A4 (2 páginas), com campos para anotações, designer, prazo e aprovação.
+
+Para ampliar os bancos de sorteio, edite as listas `PRODUTOS`, `NOMES`, `PALETAS`, `GRAFISMOS`, `REFERENCIAS` e `TIPOS` no início do script.
+
+---
+
+## Diagnóstico de Marca
 
 Ferramenta do **Ferrabisk Estúdio** para diagnóstico e criação de marcas. Um único arquivo HTML, autônomo, que abre em qualquer navegador — sem instalação e sem servidor obrigatório.
 
